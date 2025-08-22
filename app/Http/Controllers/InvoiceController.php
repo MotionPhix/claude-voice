@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class InvoiceController extends Controller
 {
@@ -46,13 +47,19 @@ class InvoiceController extends Controller
         $invoices = $query->orderBy('created_at', 'desc')->paginate(15);
         $clients = Client::where('is_active', true)->get();
 
-        return view('invoices.index', compact('invoices', 'clients'));
+        return Inertia::render('invoices/Index', [
+            'invoices' => $invoices,
+            'clients' => $clients,
+            'filters' => $request->only(['status', 'client_id', 'search', 'date_from', 'date_to']),
+        ]);
     }
 
     public function create()
     {
         $clients = Client::where('is_active', true)->get();
-        return view('invoices.create', compact('clients'));
+        return Inertia::render('invoices/Create', [
+            'clients' => $clients,
+        ]);
     }
 
     public function store(Request $request)
@@ -97,7 +104,9 @@ class InvoiceController extends Controller
     public function show(Invoice $invoice)
     {
         $invoice->load(['client', 'items', 'payments']);
-        return view('invoices.show', compact('invoice'));
+        return Inertia::render('invoices/Show', [
+            'invoice' => $invoice,
+        ]);
     }
 
     public function edit(Invoice $invoice)
@@ -110,7 +119,10 @@ class InvoiceController extends Controller
         $clients = Client::where('is_active', true)->get();
         $invoice->load('items');
 
-        return view('invoices.edit', compact('invoice', 'clients'));
+        return Inertia::render('invoices/Edit', [
+            'invoice' => $invoice,
+            'clients' => $clients,
+        ]);
     }
 
     public function update(Request $request, Invoice $invoice)

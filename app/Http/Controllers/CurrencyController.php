@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Currency;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Inertia\Inertia;
 
 class CurrencyController extends Controller
 {
@@ -27,12 +28,18 @@ class CurrencyController extends Controller
         $currencies = $query->orderBy('code')->paginate(15);
         $baseCurrency = Currency::where('is_base', true)->first();
 
-        return view('currencies.index', compact('currencies', 'baseCurrency'));
+        return Inertia::render('currencies/Index', [
+            'currencies' => $currencies,
+            'baseCurrency' => $baseCurrency,
+            'filters' => $request->only(['search', 'active']),
+        ]);
     }
 
     public function create()
     {
-        return view('currencies.create');
+        return Inertia::render('currencies/Create', [
+            'currency' => new Currency(),
+        ]);
     }
 
     public function store(Request $request)
@@ -69,7 +76,9 @@ class CurrencyController extends Controller
     {
         $currency->load(['clients', 'invoices']);
 
-        return view('currencies.show', compact('currency'));
+        return Inertia::render('currencies/Show', [
+            'currency' => $currency,
+        ]);
     }
 
     public function edit(Currency $currency)

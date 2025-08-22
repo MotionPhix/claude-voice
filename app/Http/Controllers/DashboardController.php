@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
@@ -39,8 +40,11 @@ class DashboardController extends Controller
             ->get()
             ->reverse();
 
-        return view('dashboard', compact(
-            'stats', 'recent_invoices', 'overdue_invoices', 'monthly_revenue'
-        ));
+        return Inertia::render('Dashboard', [
+            'stats' => $stats,
+            'recent_invoices' => $recent_invoices,
+            'overdue_invoices' => $overdue_invoices,
+            'monthly_revenue' => $monthly_revenue,
+        ]);
     }
 }

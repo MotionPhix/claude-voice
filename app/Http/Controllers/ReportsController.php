@@ -9,6 +9,7 @@ use App\Services\InvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Inertia\Inertia;
 
 class ReportsController extends Controller
 {
@@ -21,7 +22,7 @@ class ReportsController extends Controller
 
     public function index()
     {
-        return view('reports.index');
+        return Inertia::render('reports/Index', []);
     }
 
     public function revenue(Request $request)
@@ -89,9 +90,14 @@ class ReportsController extends Controller
 
         $clients = Client::where('is_active', true)->get();
 
-        return view('reports.revenue', compact(
-            'revenueData', 'topClients', 'revenueByCurrency', 'stats', 'clients', 'validated'
-        ));
+        return Inertia::render('reports/Revenue', [
+            'revenueData' => $revenueData,
+            'topClients' => $topClients,
+            'revenueByCurrency' => $revenueByCurrency,
+            'stats' => $stats,
+            'clients' => $clients,
+            'filters' => $validated,
+        ]);
     }
 
     public function outstanding(Request $request)
@@ -141,7 +147,12 @@ class ReportsController extends Controller
 
         $clients = Client::where('is_active', true)->get();
 
-        return view('reports.outstanding', compact('outstandingInvoices', 'agingSummary', 'clients', 'validated'));
+        return Inertia::render('reports/Outstanding', [
+            'outstandingInvoices' => $outstandingInvoices,
+            'agingSummary' => $agingSummary,
+            'clients' => $clients,
+            'filters' => $validated,
+        ]);
     }
 
     public function payments(Request $request)
@@ -208,7 +219,13 @@ class ReportsController extends Controller
 
         $clients = Client::where('is_active', true)->get();
 
-        return view('reports.payments', compact('payments', 'paymentMethods', 'dailyPayments', 'clients', 'validated'));
+        return Inertia::render('reports/Payments', [
+            'payments' => $payments,
+            'paymentMethods' => $paymentMethods,
+            'dailyPayments' => $dailyPayments,
+            'clients' => $clients,
+            'filters' => $validated,
+        ]);
     }
 
     public function clients(Request $request)
@@ -240,7 +257,10 @@ class ReportsController extends Controller
             })
             ->sortByDesc('total_revenue');
 
-        return view('reports.clients', compact('clientStats', 'validated'));
+        return Inertia::render('reports/Clients', [
+            'clientStats' => $clientStats,
+            'filters' => $validated,
+        ]);
     }
 
     public function exportPdf(Request $request)
@@ -260,6 +280,8 @@ class ReportsController extends Controller
             default:
                 abort(404);
         }
+
+        // return response()->json(['message' => 'PDF export functionality coming soon']);
     }
 
     private function groupRevenueData($query, $groupBy)

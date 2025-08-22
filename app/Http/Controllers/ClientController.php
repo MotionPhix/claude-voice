@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class ClientController extends Controller
 {
@@ -27,12 +28,17 @@ class ClientController extends Controller
             ->orderBy('name')
             ->paginate(15);
 
-        return view('clients.index', compact('clients'));
+        return Inertia::render('clients/Index', [
+            'clients' => $clients,
+            'filters' => $request->only(['search', 'active']),
+        ]);
     }
 
-    public function create()
+    public function create(): \Inertia\Response
     {
-        return view('clients.create');
+        return Inertia::render('clients/Create', [
+            'client' => new Client(),
+        ]);
     }
 
     public function store(Request $request)
@@ -47,6 +53,9 @@ class ClientController extends Controller
             'postal_code' => 'nullable|string|max:20',
             'country' => 'nullable|string|max:100',
             'tax_number' => 'nullable|string|max:50',
+            'is_active' => 'boolean',
+            'currency_id' => 'nullable|exists:currencies,id',
+            'notes' => 'nullable|string',
         ]);
 
         Client::create($validated);
@@ -61,12 +70,16 @@ class ClientController extends Controller
             $query->with('payments')->latest();
         }]);
 
-        return view('clients.show', compact('client'));
+        return Inertia::render('clients/Show', [
+            'client' => $client,
+        ]);
     }
 
     public function edit(Client $client)
     {
-        return view('clients.edit', compact('client'));
+        return Inertia::render('clients/Edit', [
+            'client' => $client,
+        ]);
     }
 
     public function update(Request $request, Client $client)

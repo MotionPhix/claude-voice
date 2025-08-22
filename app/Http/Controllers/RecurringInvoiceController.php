@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\RecurringInvoice;
 use App\Models\RecurringInvoiceItem;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class RecurringInvoiceController extends Controller
 {
@@ -38,13 +39,20 @@ class RecurringInvoiceController extends Controller
         $recurringInvoices = $query->orderBy('created_at', 'desc')->paginate(15);
         $clients = Client::where('is_active', true)->get();
 
-        return view('recurring-invoices.index', compact('recurringInvoices', 'clients'));
+        return Inertia::render('recurring-invoices/Index', [
+            'recurringInvoices' => $recurringInvoices,
+            'clients' => $clients,
+            'filters' => $request->only(['status', 'client_id', 'search']),
+        ]);
     }
 
     public function create()
     {
         $clients = Client::where('is_active', true)->get();
-        return view('recurring-invoices.create', compact('clients'));
+
+        return Inertia::render('recurring-invoices/Create', [
+            'clients' => $clients,
+        ]);
     }
 
     public function store(Request $request)
@@ -107,7 +115,9 @@ class RecurringInvoiceController extends Controller
             $query->latest()->with('payments');
         }]);
 
-        return view('recurring-invoices.show', compact('recurringInvoice'));
+        return Inertia::render('recurring-invoices/Show', [
+            'recurringInvoice' => $recurringInvoice,
+        ]);
     }
 
     public function edit(RecurringInvoice $recurringInvoice)
@@ -115,7 +125,10 @@ class RecurringInvoiceController extends Controller
         $clients = Client::where('is_active', true)->get();
         $recurringInvoice->load('items');
 
-        return view('recurring-invoices.edit', compact('recurringInvoice', 'clients'));
+        return Inertia::render('recurring-invoices/Edit', [
+            'recurringInvoice' => $recurringInvoice,
+            'clients' => $clients,
+        ]);
     }
 
     public function update(Request $request, RecurringInvoice $recurringInvoice)

@@ -6,7 +6,9 @@ use App\Models\Currency;
 use App\Models\InvoiceTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 
 class SettingsController extends Controller
 {
@@ -16,7 +18,11 @@ class SettingsController extends Controller
         $currencies = Currency::where('is_active', true)->get();
         $templates = InvoiceTemplate::all();
 
-        return view('settings.index', compact('settings', 'currencies', 'templates'));
+        return Inertia::render('settings/Index', [
+            'settings' => $settings,
+            'currencies' => $currencies,
+            'templates' => $templates,
+        ]);
     }
 
     public function company(Request $request)
@@ -26,7 +32,10 @@ class SettingsController extends Controller
         }
 
         $settings = $this->getSettings();
-        return view('settings.company', compact('settings'));
+
+        return Inertia::render('settings/Company', [
+            'settings' => $settings,
+        ]);
     }
 
     public function invoice(Request $request)
@@ -39,7 +48,11 @@ class SettingsController extends Controller
         $currencies = Currency::where('is_active', true)->get();
         $templates = InvoiceTemplate::all();
 
-        return view('settings.invoice', compact('settings', 'currencies', 'templates'));
+        return Inertia::render('settings/Invoice', [
+            'settings' => $settings,
+            'currencies' => $currencies,
+            'templates' => $templates,
+        ]);
     }
 
     public function email(Request $request)
@@ -49,7 +62,10 @@ class SettingsController extends Controller
         }
 
         $settings = $this->getSettings();
-        return view('settings.email', compact('settings'));
+
+        return Inertia::render('settings/Email', [
+            'settings' => $settings,
+        ]);
     }
 
     public function payment(Request $request)
@@ -59,7 +75,10 @@ class SettingsController extends Controller
         }
 
         $settings = $this->getSettings();
-        return view('settings.payment', compact('settings'));
+
+        return Inertia::render('settings/Payment', [
+            'settings' => $settings,
+        ]);
     }
 
     private function updateCompanySettings(Request $request)
@@ -177,7 +196,7 @@ class SettingsController extends Controller
         ]);
 
         try {
-            \Mail::raw('This is a test email from your invoice system.', function($message) use ($request) {
+            Mail::raw('This is a test email from your invoice system.', function($message) use ($request) {
                 $message->to($request->test_email)
                     ->subject('Test Email - Invoice System');
             });
