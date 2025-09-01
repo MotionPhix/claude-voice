@@ -178,7 +178,7 @@ const formatRelativeTime = (date: string) => {
   return `${Math.abs(diffDays)} days ago`;
 };
 
-// Chart data and options for ApexCharts (when installed)
+// Chart data and options for ApexCharts
 const revenueChartOptions = computed(() => ({
   chart: {
     type: 'area',
@@ -188,6 +188,11 @@ const revenueChartOptions = computed(() => ({
     },
     zoom: {
       enabled: false
+    },
+    animations: {
+      enabled: true,
+      easing: 'easeinout',
+      speed: 800
     }
   },
   dataLabels: {
@@ -199,14 +204,16 @@ const revenueChartOptions = computed(() => ({
   },
   grid: {
     show: true,
-    borderColor: '#e5e7eb'
+    borderColor: '#e5e7eb',
+    strokeDashArray: 3,
+    opacity: 0.4
   },
   colors: ['#3b82f6'],
   fill: {
     type: 'gradient',
     gradient: {
       shadeIntensity: 1,
-      opacityFrom: 0.7,
+      opacityFrom: 0.4,
       opacityTo: 0.1,
       stops: [0, 90, 100]
     }
@@ -215,23 +222,44 @@ const revenueChartOptions = computed(() => ({
     categories: props.monthly_revenue?.map(item => item.month) || [],
     labels: {
       style: {
-        colors: '#6b7280'
+        colors: '#6b7280',
+        fontSize: '12px'
       }
+    },
+    axisBorder: {
+      show: false
+    },
+    axisTicks: {
+      show: false
     }
   },
   yaxis: {
     labels: {
-      formatter: (value) => `$${(value / 1000).toFixed(0)}k`,
+      formatter: (value: number) => `${(value / 1000).toFixed(0)}k`,
       style: {
-        colors: '#6b7280'
+        colors: '#6b7280',
+        fontSize: '12px'
       }
-    }
+    },
+    min: 0
   },
   tooltip: {
+    theme: 'light',
     y: {
-      formatter: (value) => `$${value.toLocaleString()}`
+      formatter: (value: number) => `${value.toLocaleString()}`
+    },
+    style: {
+      fontSize: '12px'
     }
-  }
+  },
+  responsive: [{
+    breakpoint: 640,
+    options: {
+      chart: {
+        height: 250
+      }
+    }
+  }]
 }));
 
 const revenueChartSeries = computed(() => [{
@@ -250,87 +278,149 @@ const invoiceStatusData = computed(() => [
 const donutChartOptions = computed(() => ({
   chart: {
     type: 'donut',
-    height: 300
+    height: 300,
+    animations: {
+      enabled: true,
+      easing: 'easeinout',
+      speed: 800
+    }
   },
   colors: invoiceStatusData.value.map(item => item.color),
   labels: invoiceStatusData.value.map(item => item.label),
   dataLabels: {
-    enabled: false
+    enabled: true,
+    formatter: (val: number, opts: any) => {
+      const value = invoiceStatusData.value[opts.seriesIndex].value;
+      return `${value}`;
+    },
+    style: {
+      fontSize: '12px',
+      fontWeight: '600',
+      colors: ['#ffffff']
+    },
+    dropShadow: {
+      enabled: false
+    }
   },
   legend: {
     position: 'bottom',
-    horizontalAlign: 'center'
+    horizontalAlign: 'center',
+    fontSize: '12px',
+    fontWeight: '500',
+    markers: {
+      width: 8,
+      height: 8,
+      radius: 4
+    },
+    itemMargin: {
+      horizontal: 12,
+      vertical: 4
+    }
   },
   plotOptions: {
     pie: {
       donut: {
-        size: '70%'
+        size: '65%',
+        labels: {
+          show: true,
+          name: {
+            show: true,
+            fontSize: '14px',
+            fontWeight: '600',
+            offsetY: -5
+          },
+          value: {
+            show: true,
+            fontSize: '20px',
+            fontWeight: '700',
+            offsetY: 5,
+            formatter: (val: string) => val
+          },
+          total: {
+            show: true,
+            showAlways: true,
+            label: 'Total',
+            fontSize: '12px',
+            fontWeight: '500',
+            color: '#6b7280',
+            formatter: () => `${props.stats?.total_invoices || 0}`
+          }
+        }
       }
     }
-  }
+  },
+  stroke: {
+    width: 2,
+    colors: ['#ffffff']
+  },
+  tooltip: {
+    theme: 'light',
+    y: {
+      formatter: (val: number) => `${val} invoices`
+    },
+    style: {
+      fontSize: '12px'
+    }
+  },
+  responsive: [{
+    breakpoint: 640,
+    options: {
+      chart: {
+        height: 250
+      },
+      legend: {
+        position: 'bottom'
+      }
+    }
+  }]
 }));
 
 const donutChartSeries = computed(() => invoiceStatusData.value.map(item => item.value));
 
-// Native SVG Chart Component for Revenue Trend (working solution)
-const maxRevenue = computed(() => Math.max(...(props.monthly_revenue?.map(item => item.revenue) || [0])));
-const chartPoints = computed(() => {
-  const width = 300;
-  const height = 150;
-  const padding = 20;
+// Collection Rate Chart Options
+const collectionChartOptions = computed(() => ({
+  chart: {
+    type: 'radialBar',
+    height: 200,
+    toolbar: {
+      show: false
+    }
+  },
+  plotOptions: {
+    radialBar: {
+      startAngle: -135,
+      endAngle: 135,
+      hollow: {
+        size: '60%'
+      },
+      track: {
+        background: '#f3f4f6',
+        strokeWidth: '100%'
+      },
+      dataLabels: {
+        name: {
+          show: false
+        },
+        value: {
+          show: true,
+          fontSize: '24px',
+          fontWeight: '700',
+          color: '#1f2937',
+          offsetY: 8,
+          formatter: (val: number) => `${val.toFixed(1)}%`
+        }
+      }
+    }
+  },
+  colors: ['#10b981'],
+  stroke: {
+    lineCap: 'round'
+  }
+}));
 
-  return props.monthly_revenue?.map((item, index) => {
-    const x = padding + (index * (width - 2 * padding)) / Math.max(1, (props.monthly_revenue?.length || 1) - 1);
-    const y = height - padding - ((item.revenue / maxRevenue.value) * (height - 2 * padding));
-    return `${x},${y}`;
-  }).join(' ') || '';
-});
+const collectionChartSeries = computed(() => [collectionRate.value]);
 
-// Computed properties for donut chart segments
-const paidSegment = computed(() => {
-  const total = props.stats?.total_invoices || 1;
-  const paid = props.stats?.paid_count || 0;
-  return {
-    dasharray: `${(paid / total) * 377} 377`,
-    dashoffset: '0'
-  };
-});
 
-const pendingSegment = computed(() => {
-  const total = props.stats?.total_invoices || 1;
-  const paid = props.stats?.paid_count || 0;
-  const draft = props.stats?.draft_count || 0;
-  const overdue = props.stats?.overdue_count || 0;
-  const pending = total - paid - draft - overdue;
-  return {
-    dasharray: `${(pending / total) * 377} 377`,
-    dashoffset: `-${(paid / total) * 377}`
-  };
-});
-
-const draftSegment = computed(() => {
-  const total = props.stats?.total_invoices || 1;
-  const paid = props.stats?.paid_count || 0;
-  const draft = props.stats?.draft_count || 0;
-  const overdue = props.stats?.overdue_count || 0;
-  const pending = total - paid - draft - overdue;
-  return {
-    dasharray: `${(draft / total) * 377} 377`,
-    dashoffset: `-${((paid + pending) / total) * 377}`
-  };
-});
-
-const overdueSegment = computed(() => {
-  const total = props.stats?.total_invoices || 1;
-  const paid = props.stats?.paid_count || 0;
-  const draft = props.stats?.draft_count || 0;
-  const overdue = props.stats?.overdue_count || 0;
-  const pending = total - paid - draft - overdue;
-  return {
-    dasharray: `${(overdue / total) * 377} 377`,
-    dashoffset: `-${((paid + pending + draft) / total) * 377}`
-  };
-});
 </script>
 
 <template>
@@ -495,13 +585,6 @@ const overdueSegment = computed(() => {
               :series="revenueChartSeries"
               height="350"
             />
-
-            <!-- X-axis labels -->
-            <div class="flex justify-between mt-2 px-5">
-              <span v-for="item in monthly_revenue" :key="item.month" class="text-xs text-gray-500">
-                {{ item.month }}
-              </span>
-            </div>
           </CardContent>
         </Card>
 
@@ -538,11 +621,13 @@ const overdueSegment = computed(() => {
           </CardHeader>
           <CardContent>
             <div class="text-center">
-              <div class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {{ collectionRate.toFixed(1) }}%
-              </div>
-              <Progress :value="collectionRate" class="mb-4" />
-              <p class="text-sm text-gray-500">
+              <apexchart
+                type="radialBar"
+                :options="collectionChartOptions"
+                :series="collectionChartSeries"
+                height="200"
+              />
+              <p class="text-sm text-gray-500 -mt-4">
                 {{ stats?.paid_count || 0 }} of {{ stats?.total_invoices || 0 }} invoices paid
               </p>
             </div>
