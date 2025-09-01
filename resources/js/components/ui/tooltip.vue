@@ -1,64 +1,57 @@
+<!-- Tooltip.vue -->
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
-interface TooltipProps {
-  content: string;
-  side?: 'top' | 'bottom' | 'left' | 'right';
+interface Props {
+  delayDuration?: number;
 }
 
-const props = withDefaults(defineProps<TooltipProps>(), {
-  side: 'top'
+const props = withDefaults(defineProps<Props>(), {
+  delayDuration: 700
 });
 
-const show = ref(false);
+const isVisible = ref(false);
+const timeoutId = ref<NodeJS.Timeout | null>(null);
+
+const showTooltip = () => {
+  if (timeoutId.value) {
+    clearTimeout(timeoutId.value);
+  }
+  
+  timeoutId.value = setTimeout(() => {
+    isVisible.value = true;
+  }, props.delayDuration);
+};
+
+const hideTooltip = () => {
+  if (timeoutId.value) {
+    clearTimeout(timeoutId.value);
+    timeoutId.value = null;
+  }
+  isVisible.value = false;
+};
 </script>
 
 <template>
   <div class="relative inline-block">
-    <div 
-      @mouseenter="show = true"
-      @mouseleave="show = false"
-      @focus="show = true"
-      @blur="show = false"
+    <div
+      @mouseenter="showTooltip"
+      @mouseleave="hideTooltip"
+      @focus="showTooltip"
+      @blur="hideTooltip"
     >
       <slot />
     </div>
     
-    <Transition
-      enter-active-class="transition ease-out duration-200"
-      enter-from-class="opacity-0 translate-y-1"
-      enter-to-class="opacity-100 translate-y-0"
-      leave-active-class="transition ease-in duration-150"
-      leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 translate-y-1"
-    >
+    <Teleport to="body">
       <div
-        v-if="show"
-        :class="[
-          'absolute z-50 px-2 py-1 text-xs text-white bg-gray-900 rounded-md shadow-lg whitespace-nowrap',
-          {
-            'bottom-full left-1/2 transform -translate-x-1/2 mb-2': side === 'top',
-            'top-full left-1/2 transform -translate-x-1/2 mt-2': side === 'bottom',
-            'right-full top-1/2 transform -translate-y-1/2 mr-2': side === 'left',
-            'left-full top-1/2 transform -translate-y-1/2 ml-2': side === 'right',
-          }
-        ]"
-        role="tooltip"
+        v-if="isVisible"
+        class="absolute z-50 px-3 py-1.5 text-sm text-white bg-gray-900 rounded-md shadow-lg dark:bg-gray-700 pointer-events-none"
+        :style="{ top: '0px', left: '0px' }"
       >
-        {{ content }}
-        <!-- Arrow -->
-        <div
-          :class="[
-            'absolute w-2 h-2 bg-gray-900 transform rotate-45',
-            {
-              'top-full left-1/2 -translate-x-1/2 -mt-1': side === 'top',
-              'bottom-full left-1/2 -translate-x-1/2 -mb-1': side === 'bottom',
-              'top-1/2 left-full -translate-y-1/2 -ml-1': side === 'left',
-              'top-1/2 right-full -translate-y-1/2 -mr-1': side === 'right',
-            }
-          ]"
-        />
+        <slot name="content" />
+        <div class="absolute w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45 -bottom-1 left-1/2 transform -translate-x-1/2"></div>
       </div>
-    </Transition>
+    </Teleport>
   </div>
 </template>
