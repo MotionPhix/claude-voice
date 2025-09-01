@@ -4,14 +4,14 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreInvoiceRequest extends FormRequest
+class UpdateInvoiceRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->route('invoice')->status === 'draft';
     }
 
     /**
@@ -55,5 +55,25 @@ class StoreInvoiceRequest extends FormRequest
             'items.*.unit_price.required' => 'Item unit price is required.',
             'items.*.unit_price.min' => 'Item unit price must be at least 0.',
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Ensure tax_rate and discount default to 0 if not provided
+        $this->merge([
+            'tax_rate' => $this->tax_rate ?? 0,
+            'discount' => $this->discount ?? 0,
+        ]);
+    }
+
+    /**
+     * Get the error messages for the defined validation rules.
+     */
+    public function failedAuthorization()
+    {
+        abort(403, 'Only draft invoices can be updated.');
     }
 }

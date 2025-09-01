@@ -1,9 +1,23 @@
 <?php
 
+use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\SystemNotificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->prefix('api')->name('api.')->group(function () {
+    // Invoice API
+    Route::prefix('invoices')->name('invoices.')->group(function () {
+        Route::get('/', [InvoiceController::class, 'index'])->name('index');
+        Route::post('/', [InvoiceController::class, 'store'])->name('store');
+        Route::get('/stats', [InvoiceController::class, 'stats'])->name('stats');
+        Route::get('/{invoice}', [InvoiceController::class, 'show'])->name('show');
+        Route::put('/{invoice}', [InvoiceController::class, 'update'])->name('update');
+        Route::delete('/{invoice}', [InvoiceController::class, 'destroy'])->name('destroy');
+        Route::post('/{invoice}/send', [InvoiceController::class, 'send'])->name('send');
+        Route::post('/{invoice}/mark-paid', [InvoiceController::class, 'markPaid'])->name('mark-paid');
+        Route::post('/{invoice}/convert-currency', [InvoiceController::class, 'convertCurrency'])->name('convert-currency');
+    });
+
     // System Notifications API
     Route::prefix('notifications')->name('notifications.')->group(function () {
         Route::get('/', [SystemNotificationController::class, 'index'])->name('index');

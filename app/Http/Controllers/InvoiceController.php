@@ -2,15 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreInvoiceRequest;
+use App\Http\Requests\UpdateInvoiceRequest;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Services\InvoiceService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class InvoiceController extends Controller
 {
+    protected InvoiceService $invoiceService;
+
+    public function __construct(InvoiceService $invoiceService)
+    {
+        $this->invoiceService = $invoiceService;
+    }
     public function index(Request $request)
     {
         $query = Invoice::with(['client', 'payments']);
@@ -62,26 +71,15 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreInvoiceRequest $request)
     {
-        $validated = $request->validate([
-            'client_id' => 'required|exists:clients,id',
-            'issue_date' => 'required|date',
-            'due_date' => 'required|date|after_or_equal:issue_date',
-            'tax_rate' => 'numeric|min:0|max:100',
-            'discount' => 'numeric|min:0',
-            'notes' => 'nullable|string',
-            'terms' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.description' => 'required|string',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_price' => 'required|numeric|min:0',
-        ]);
+        $validated = $request->validated();
 
         $invoice = Invoice::create([
             'client_id' => $validated['client_id'],
             'issue_date' => $validated['issue_date'],
             'due_date' => $validated['due_date'],
+            'currency' => $validated['currency'] ?? 'USD',
             'tax_rate' => $validated['tax_rate'] ?? 0,
             'discount' => $validated['discount'] ?? 0,
             'notes' => $validated['notes'],
@@ -94,8 +92,11 @@ class InvoiceController extends Controller
                 'description' => $item['description'],
                 'quantity' => $item['quantity'],
                 'unit_price' => $item['unit_price'],
+                'total' => $item['quantity'] * $item['unit_price'],
             ]);
         }
+
+        $invoice->calculateTotals();
 
         return redirect()->route('invoices.show', $invoice)
             ->with('success', 'Invoice created successfully.');
@@ -125,31 +126,15 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function update(Request $request, Invoice $invoice)
+    public function update(UpdateInvoiceRequest $request, Invoice $invoice)
     {
-        if ($invoice->status !== 'draft') {
-            return redirect()->route('invoices.show', $invoice)
-                ->with('error', 'Only draft invoices can be edited.');
-        }
-
-        $validated = $request->validate([
-            'client_id' => 'required|exists:clients,id',
-            'issue_date' => 'required|date',
-            'due_date' => 'required|date|after_or_equal:issue_date',
-            'tax_rate' => 'numeric|min:0|max:100',
-            'discount' => 'numeric|min:0',
-            'notes' => 'nullable|string',
-            'terms' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.description' => 'required|string',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_price' => 'required|numeric|min:0',
-        ]);
+        $validated = $request->validated();
 
         $invoice->update([
             'client_id' => $validated['client_id'],
             'issue_date' => $validated['issue_date'],
             'due_date' => $validated['due_date'],
+            'currency' => $validated['currency'] ?? $invoice->currency,
             'tax_rate' => $validated['tax_rate'] ?? 0,
             'discount' => $validated['discount'] ?? 0,
             'notes' => $validated['notes'],
@@ -164,8 +149,11 @@ class InvoiceController extends Controller
                 'description' => $item['description'],
                 'quantity' => $item['quantity'],
                 'unit_price' => $item['unit_price'],
+                'total' => $item['quantity'] * $item['unit_price'],
             ]);
         }
+
+        $invoice->calculateTotals();
 
         return redirect()->route('invoices.show', $invoice)
             ->with('success', 'Invoice updated successfully.');
@@ -190,31 +178,30 @@ class InvoiceController extends Controller
                 ->with('error', 'Only draft invoices can be sent.');
         }
 
-        $invoice->markAsSent();
-
-        // Here you would typically send the invoice via email
-        // Mail::to($invoice->client->email)->send(new InvoiceMail($invoice));
-
-        return redirect()->route('invoices.show', $invoice)
-            ->with('success', 'Invoice sent successfully.');
+        try {
+            $this->invoiceService->sendInvoiceEmail($invoice);
+            
+            return redirect()->route('invoices.show', $invoice)
+                ->with('success', 'Invoice sent successfully to ' . $invoice->client->email . '.');
+        } catch (\Exception $e) {
+            return redirect()->route('invoices.show', $invoice)
+                ->with('error', 'Failed to send invoice: ' . $e->getMessage());
+        }
     }
 
     public function pdf(Invoice $invoice)
     {
-        $invoice->load(['client', 'items', 'payments']);
-
-        // Using DomPDF (composer require barryvdh/laravel-dompdf)
-        $pdf = PDF::loadView('invoices.pdf', compact('invoice'));
-
+        $pdf = $this->invoiceService->generatePdf($invoice);
         return $pdf->download("invoice-{$invoice->invoice_number}.pdf");
     }
 
     public function duplicate(Invoice $invoice)
     {
         $newInvoice = $invoice->replicate([
-            'invoice_number', 'status', 'sent_at', 'paid_at'
+            'invoice_number', 'status', 'sent_at', 'paid_at', 'amount_paid'
         ]);
 
+        $newInvoice->status = 'draft';
         $newInvoice->issue_date = now()->toDateString();
         $newInvoice->due_date = now()->addDays(30)->toDateString();
         $newInvoice->save();
@@ -225,7 +212,9 @@ class InvoiceController extends Controller
             $newItem->save();
         }
 
+        $newInvoice->calculateTotals();
+
         return redirect()->route('invoices.edit', $newInvoice)
-            ->with('success', 'Invoice duplicated successfully.');
+            ->with('success', 'Invoice duplicated successfully as ' . $newInvoice->invoice_number . '.');
     }
 }
