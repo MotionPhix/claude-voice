@@ -10,8 +10,11 @@ class PaymentController extends Controller
 {
     public function store(Request $request, Invoice $invoice)
     {
+        $this->authorize('view', $invoice); // User must have access to the invoice
+        $this->authorize('create', Payment::class);
+
         $validated = $request->validate([
-            'amount' => 'required|numeric|min:0.01|max:' . $invoice->remaining_balance,
+            'amount' => 'required|numeric|min:0.01|max:'.$invoice->remaining_balance,
             'payment_date' => 'required|date',
             'method' => 'required|in:cash,check,bank_transfer,credit_card,paypal,other',
             'reference' => 'nullable|string|max:255',
@@ -33,6 +36,8 @@ class PaymentController extends Controller
 
     public function destroy(Payment $payment)
     {
+        $this->authorize('delete', $payment);
+
         $invoice = $payment->invoice;
         $payment->delete();
 

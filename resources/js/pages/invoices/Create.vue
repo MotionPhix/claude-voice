@@ -38,6 +38,13 @@ interface Client {
     state?: string;
     postal_code?: string;
     country?: string;
+    currency?: string;
+}
+
+interface Currency {
+    value: string;
+    label: string;
+    symbol: string;
 }
 
 interface InvoiceItem {
@@ -50,6 +57,8 @@ interface InvoiceItem {
 
 interface Props {
     clients: Client[];
+    currencies: Currency[];
+    defaultCurrency: string;
     invoice_number: string;
 }
 
@@ -70,7 +79,7 @@ const form = useForm({
     terms: '',
     tax_rate: 0,
     discount: 0,
-    currency: 'USD',
+    currency: props.defaultCurrency,
     items: [
         {
             description: '',
@@ -91,21 +100,19 @@ const clientForm = useForm({
     city: '',
     state: '',
     postal_code: '',
-    country: ''
+    country: '',
+    currency: props.defaultCurrency
 });
 
-const currencies = [
-    { value: 'USD', label: 'USD - US Dollar' },
-    { value: 'EUR', label: 'EUR - Euro' },
-    { value: 'GBP', label: 'GBP - British Pound' },
-    { value: 'CAD', label: 'CAD - Canadian Dollar' },
-    { value: 'AUD', label: 'AUD - Australian Dollar' },
-    { value: 'ZAR', label: 'ZAR - South African Rand' }
-];
+const currencies = ref(props.currencies);
+
+const clients = ref([...props.clients]);
 
 // Computed properties
+const hasClients = computed(() => clients.value.length > 0);
+
 const selectedClient = computed(() => {
-    return props.clients.find(client => client.id.toString() === form.client_id);
+    return clients.value.find(client => client.id.toString() === form.client_id);
 });
 
 const subtotal = computed(() => {
@@ -126,6 +133,11 @@ const taxAmount = computed(() => {
 
 const total = computed(() => {
     return taxableAmount.value + taxAmount.value;
+});
+
+const canSaveInvoice = computed(() => {
+    return hasClients.value && form.client_id && form.items.length > 0 && 
+           form.items.some(item => item.description && item.quantity > 0 && item.unit_price >= 0);
 });
 
 // Set default due date (30 days from issue date)
@@ -170,7 +182,7 @@ const createClient = () => {
     clientForm.post('/clients', {
         onSuccess: (page) => {
             const newClient = page.props.client as Client;
-            props.clients.push(newClient);
+            clients.value.push(newClient);
             form.client_id = newClient.id.toString();
             showClientDialog.value = false;
             clientForm.reset();
@@ -179,6 +191,10 @@ const createClient = () => {
 };
 
 const saveDraft = () => {
+    if (!canSaveInvoice.value) {
+        return;
+    }
+    
     form.post('/invoices', {
         onSuccess: (page) => {
             const invoice = page.props.invoice;
@@ -188,6 +204,10 @@ const saveDraft = () => {
 };
 
 const saveAndSend = () => {
+    if (!canSaveInvoice.value) {
+        return;
+    }
+    
     form.post('/invoices?send=true', {
         onSuccess: (page) => {
             const invoice = page.props.invoice;
@@ -224,11 +244,11 @@ watch(() => form.items, () => {
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <Button variant="outline" @click="saveDraft" :disabled="form.processing">
+                    <Button variant="outline" @click="saveDraft" :disabled="form.processing || !canSaveInvoice">
                         <Save class="h-4 w-4 mr-2" />
                         Save Draft
                     </Button>
-                    <Button @click="saveAndSend" :disabled="form.processing">
+                    <Button @click="saveAndSend" :disabled="form.processing || !canSaveInvoice">
                         <Send class="h-4 w-4 mr-2" />
                         Save & Send
                     </Button>
@@ -401,6 +421,19 @@ watch(() => form.items, () => {
                                                     />
                                                 </div>
                                             </div>
+                                            <div>
+                                                <Label for="client_currency">Default Currency</Label>
+                                                <Select v-model="clientForm.currency">
+                                                    <SelectTrigger class="mt-1">
+                                                        <SelectValue placeholder="Select currency..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem v-for="currency in currencies" :key="currency.value" :value="currency.value">
+                                                            {{ currency.label }}
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
                                         </div>
                                         <DialogFooter>
                                             <Button variant="outline" @click="showClientDialog = false">
@@ -415,10 +448,10 @@ watch(() => form.items, () => {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div>
+                            <div v-if="hasClients">
                                 <Label for="client_id">Select Client</Label>
                                 <Select v-model="form.client_id">
-                                    <SelectTrigger class="mt-1">
+                                    <SelectTrigger class="mt-1 w-full">
                                         <SelectValue placeholder="Choose a client..." />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -430,6 +463,21 @@ watch(() => form.items, () => {
                                 <div v-if="form.errors.client_id" class="text-sm text-red-600 mt-1">
                                     {{ form.errors.client_id }}
                                 </div>
+                            </div>
+
+                            <!-- No clients state -->
+                            <div v-else class="text-center py-8 px-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                                <div class="text-gray-500 mb-4">
+                                    <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-lg font-medium text-gray-900 mb-2">No clients found</h3>
+                                <p class="text-gray-600 mb-4">You need to create at least one client before you can create an invoice.</p>
+                                <Button @click="showClientDialog = true" class="inline-flex items-center">
+                                    <Plus class="h-4 w-4 mr-2" />
+                                    Create Your First Client
+                                </Button>
                             </div>
 
                             <!-- Selected Client Preview -->
@@ -616,11 +664,11 @@ watch(() => form.items, () => {
                             <CardTitle>Actions</CardTitle>
                         </CardHeader>
                         <CardContent class="space-y-2">
-                            <Button variant="outline" size="sm" class="w-full" @click="saveDraft" :disabled="form.processing">
+                            <Button variant="outline" size="sm" class="w-full" @click="saveDraft" :disabled="form.processing || !canSaveInvoice">
                                 <Save class="h-4 w-4 mr-2" />
                                 Save as Draft
                             </Button>
-                            <Button size="sm" class="w-full" @click="saveAndSend" :disabled="form.processing">
+                            <Button size="sm" class="w-full" @click="saveAndSend" :disabled="form.processing || !canSaveInvoice">
                                 <Send class="h-4 w-4 mr-2" />
                                 Save & Send to Client
                             </Button>

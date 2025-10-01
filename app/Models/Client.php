@@ -2,16 +2,17 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Client extends Model
 {
-    use HasFactory;
+    use BelongsToOrganization, HasFactory;
 
     protected $fillable = [
-        'name', 'email', 'phone', 'address', 'city', 'state',
-        'postal_code', 'country', 'tax_number', 'currency', 'is_active'
+        'organization_id', 'name', 'email', 'phone', 'address', 'city', 'state',
+        'postal_code', 'country', 'tax_number', 'currency', 'is_active',
     ];
 
     protected $casts = [
@@ -45,8 +46,8 @@ class Client extends Model
         $parts = array_filter([
             $this->address,
             $this->city,
-            $this->state . ' ' . $this->postal_code,
-            $this->country
+            $this->state.' '.$this->postal_code,
+            $this->country,
         ]);
 
         return implode(', ', $parts);

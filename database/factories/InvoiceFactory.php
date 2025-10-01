@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\Client;
 use App\Models\Currency;
 use App\Models\Invoice;
+use App\Models\Organization;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class InvoiceFactory extends Factory
@@ -20,7 +21,7 @@ class InvoiceFactory extends Factory
     {
         $issueDate = $this->faker->dateTimeBetween('-6 months', 'now');
         $dueDate = $this->faker->dateTimeBetween($issueDate, '+1 month');
-        
+
         $subtotal = $this->faker->randomFloat(2, 100, 5000);
         $taxRate = $this->faker->randomFloat(2, 0, 25);
         $taxAmount = $subtotal * ($taxRate / 100);
@@ -28,6 +29,7 @@ class InvoiceFactory extends Factory
         $total = $subtotal + $taxAmount - $discount;
 
         return [
+            'organization_id' => Organization::factory(),
             'client_id' => Client::factory(),
             'currency' => 'USD',
             'exchange_rate' => 1.000000,

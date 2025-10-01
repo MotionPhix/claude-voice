@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Invoice;
+use App\Models\Organization;
 use App\Models\Payment;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -18,6 +19,7 @@ class PaymentFactory extends Factory
     public function definition(): array
     {
         return [
+            'organization_id' => Organization::factory(),
             'invoice_id' => Invoice::factory(),
             'amount' => $this->faker->randomFloat(2, 50, 2000),
             'currency' => 'USD',
@@ -48,7 +50,7 @@ class PaymentFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'method' => 'check',
-            'reference' => 'Check #' . $this->faker->numerify('####'),
+            'reference' => 'Check #'.$this->faker->numerify('####'),
         ]);
     }
 
@@ -59,7 +61,7 @@ class PaymentFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'method' => 'bank_transfer',
-            'reference' => 'Transfer #' . $this->faker->bothify('TXN-####-????'),
+            'reference' => 'Transfer #'.$this->faker->bothify('TXN-####-????'),
         ]);
     }
 
@@ -70,7 +72,7 @@ class PaymentFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'method' => 'credit_card',
-            'reference' => 'Card ending in ' . $this->faker->numerify('####'),
+            'reference' => 'Card ending in '.$this->faker->numerify('####'),
         ]);
     }
 
@@ -81,7 +83,7 @@ class PaymentFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'method' => 'paypal',
-            'reference' => 'PayPal TXN: ' . $this->faker->bothify('??????????'),
+            'reference' => 'PayPal TXN: '.$this->faker->bothify('??????????'),
         ]);
     }
 

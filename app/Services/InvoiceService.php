@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Invoice;
 use App\Models\Currency;
+use App\Models\Invoice;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -12,7 +12,7 @@ class InvoiceService
 {
     public function generatePdf(Invoice $invoice)
     {
-        $invoice->load(['client', 'items', 'payments', 'currency']);
+        $invoice->load(['client', 'items', 'payments', 'currency', 'organization']);
 
         $pdf = PDF::loadView('invoices.pdf', compact('invoice'));
         $pdf->setPaper('A4', 'portrait');
@@ -79,10 +79,10 @@ class InvoiceService
 
         // Add currency breakdown
         $currencyStats = Invoice::selectRaw('currency, COUNT(*) as count, SUM(total) as total')
-            ->when(isset($filters['date_from']), function($q) use ($filters) {
+            ->when(isset($filters['date_from']), function ($q) use ($filters) {
                 return $q->where('issue_date', '>=', $filters['date_from']);
             })
-            ->when(isset($filters['date_to']), function($q) use ($filters) {
+            ->when(isset($filters['date_to']), function ($q) use ($filters) {
                 return $q->where('issue_date', '<=', $filters['date_to']);
             })
             ->groupBy('currency')
@@ -125,7 +125,7 @@ class InvoiceService
         $fromCurrencyModel = Currency::where('code', $invoice->currency)->first();
         $toCurrencyModel = Currency::where('code', $toCurrency)->first();
 
-        if (!$fromCurrencyModel || !$toCurrencyModel) {
+        if (! $fromCurrencyModel || ! $toCurrencyModel) {
             throw new \Exception('Invalid currency conversion requested.');
         }
 
@@ -157,17 +157,18 @@ class InvoiceService
 
     public function generateInvoiceNumber($customPrefix = null)
     {
-        $prefix = $customPrefix ?: 'INV-' . date('Y') . '-';
+        $prefix = $customPrefix ?: 'INV-'.date('Y').'-';
 
-        $lastInvoice = Invoice::where('invoice_number', 'like', $prefix . '%')
+        $lastInvoice = Invoice::where('invoice_number', 'like', $prefix.'%')
             ->orderBy('invoice_number', 'desc')
             ->first();
 
         if ($lastInvoice) {
             $lastNumber = intval(substr($lastInvoice->invoice_number, strlen($prefix)));
-            return $prefix . str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
+
+            return $prefix.str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
         }
 
-        return $prefix . '0001';
+        return $prefix.'0001';
     }
 }

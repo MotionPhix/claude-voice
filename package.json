@@ -28,7 +28,7 @@
         "vue-tsc": "^2.2.4"
     },
     "dependencies": {
-        "@inertiajs/vue3": "^2.1.0",
+        "@inertiajs/vue3": "^2.2.4",
         "@tanstack/vue-table": "^8.21.3",
         "@vueuse/core": "^12.8.2",
         "apexcharts": "^5.3.4",

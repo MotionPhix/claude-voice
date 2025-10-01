@@ -3,13 +3,17 @@
 namespace App\Models;
 
 use App\Events\SystemNotificationCreated;
+use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class SystemNotification extends Model
 {
+    use BelongsToOrganization;
+
     protected $fillable = [
+        'organization_id',
         'type',
         'level',
         'title',
@@ -37,7 +41,7 @@ class SystemNotification extends Model
     protected static function boot()
     {
         parent::boot();
-        
+
         static::created(function ($notification) {
             broadcast(new SystemNotificationCreated($notification));
         });
@@ -108,7 +112,7 @@ class SystemNotification extends Model
     {
         return $query->where(function ($query) {
             $query->whereNull('expires_at')
-                  ->orWhere('expires_at', '>', now());
+                ->orWhere('expires_at', '>', now());
         });
     }
 
@@ -125,7 +129,7 @@ class SystemNotification extends Model
      */
     public function getLevelColorAttribute(): string
     {
-        return match($this->level) {
+        return match ($this->level) {
             'success' => 'text-green-600 bg-green-50 border-green-200',
             'warning' => 'text-yellow-600 bg-yellow-50 border-yellow-200',
             'error' => 'text-red-600 bg-red-50 border-red-200',
@@ -138,7 +142,7 @@ class SystemNotification extends Model
      */
     public function getIconAttribute(): string
     {
-        return match($this->type) {
+        return match ($this->type) {
             'invoice_overdue' => 'alert-triangle',
             'payment_received' => 'check-circle',
             'invoice_sent' => 'send',

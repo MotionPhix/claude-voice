@@ -39,12 +39,37 @@ class HandleInertiaRequests extends Middleware
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
+        // Format user organizations with role labels
+        $userOrgs = user_organizations();
+        $roleLabels = [
+            'owner' => 'Owner',
+            'admin' => 'Admin',
+            'manager' => 'Manager',
+            'accountant' => 'Accountant',
+            'user' => 'User',
+        ];
+
+        $formattedOrgs = $userOrgs->map(function ($org) use ($roleLabels) {
+            return [
+                'id' => $org->id,
+                'name' => $org->name,
+                'slug' => $org->slug,
+                'pivot' => [
+                    'role' => $org->pivot->role ?? 'user',
+                    'role_label' => $roleLabels[$org->pivot->role ?? 'user'] ?? 'User',
+                ],
+            ];
+        });
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $request->user(),
+                'currentOrganization' => current_organization(),
+                'currentMembership' => current_membership(),
+                'userOrganizations' => $formattedOrgs,
             ],
             'ziggy' => [
                 ...(new Ziggy)->toArray(),

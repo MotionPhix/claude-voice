@@ -4,6 +4,8 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\MemberController;
+use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\RecurringInvoiceController;
 use App\Http\Controllers\ReportsController;
@@ -17,6 +19,25 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Organization routes
+    Route::prefix('organizations')->name('organizations.')->group(function () {
+        Route::get('/', [OrganizationController::class, 'index'])->name('index');
+        Route::get('/create', [OrganizationController::class, 'create'])->name('create');
+        Route::post('/', [OrganizationController::class, 'store'])->name('store');
+        Route::get('/{organization}/settings', [OrganizationController::class, 'settings'])->name('settings');
+        Route::put('/{organization}', [OrganizationController::class, 'update'])->name('update');
+        Route::delete('/{organization}', [OrganizationController::class, 'destroy'])->name('destroy');
+        Route::post('/{organization}/switch', [OrganizationController::class, 'switch'])->name('switch');
+
+        // Member management
+        Route::prefix('{organization}/members')->name('members.')->group(function () {
+            Route::get('/invite', [MemberController::class, 'invite'])->name('invite');
+            Route::post('/invite', [MemberController::class, 'sendInvite'])->name('send-invite');
+            Route::put('/{member}/role', [MemberController::class, 'updateRole'])->name('update-role');
+            Route::delete('/{member}', [MemberController::class, 'remove'])->name('remove');
+        });
+    });
 
     // Invoice routes
     Route::resource('invoices', InvoiceController::class);

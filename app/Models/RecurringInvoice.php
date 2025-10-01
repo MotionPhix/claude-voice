@@ -2,18 +2,19 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class RecurringInvoice extends Model
 {
-    use HasFactory;
+    use BelongsToOrganization, HasFactory;
 
     protected $fillable = [
-        'name', 'client_id', 'currency', 'frequency', 'interval', 'start_date',
+        'organization_id', 'name', 'client_id', 'currency', 'frequency', 'interval', 'start_date',
         'end_date', 'next_invoice_date', 'max_cycles', 'cycles_completed',
         'is_active', 'subtotal', 'tax_rate', 'tax_amount', 'discount', 'total',
-        'notes', 'terms', 'payment_terms_days'
+        'notes', 'terms', 'payment_terms_days',
     ];
 
     protected $casts = [
@@ -50,7 +51,7 @@ class RecurringInvoice extends Model
 
     public function calculateTotals(): static
     {
-        $subtotal = $this->items->sum(function($item) {
+        $subtotal = $this->items->sum(function ($item) {
             return $item->quantity * $item->unit_price;
         });
 
@@ -60,7 +61,7 @@ class RecurringInvoice extends Model
         $this->update([
             'subtotal' => $subtotal,
             'tax_amount' => $tax_amount,
-            'total' => $total
+            'total' => $total,
         ]);
 
         return $this;
@@ -68,7 +69,7 @@ class RecurringInvoice extends Model
 
     public function generateInvoice()
     {
-        if (!$this->shouldGenerateInvoice()) {
+        if (! $this->shouldGenerateInvoice()) {
             return null;
         }
 
@@ -117,8 +118,8 @@ class RecurringInvoice extends Model
     {
         return $this->is_active &&
             $this->next_invoice_date->isToday() &&
-            (!$this->max_cycles || $this->cycles_completed < $this->max_cycles) &&
-            (!$this->end_date || $this->next_invoice_date->lessThanOrEqualTo($this->end_date));
+            (! $this->max_cycles || $this->cycles_completed < $this->max_cycles) &&
+            (! $this->end_date || $this->next_invoice_date->lessThanOrEqualTo($this->end_date));
     }
 
     public function updateNextInvoiceDate(): void

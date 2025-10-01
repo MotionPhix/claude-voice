@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Currency;
 use App\Models\InvoiceTemplate;
+use App\Traits\HasCurrency;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
@@ -12,10 +12,12 @@ use Inertia\Inertia;
 
 class SettingsController extends Controller
 {
+    use HasCurrency;
+
     public function index()
     {
         $settings = $this->getSettings();
-        $currencies = Currency::where('is_active', true)->get();
+        $currencies = $this->getActiveCurrencies();
         $templates = InvoiceTemplate::all();
 
         return Inertia::render('settings/Index', [
@@ -45,7 +47,7 @@ class SettingsController extends Controller
         }
 
         $settings = $this->getSettings();
-        $currencies = Currency::where('is_active', true)->get();
+        $currencies = $this->getActiveCurrencies();
         $templates = InvoiceTemplate::all();
 
         return Inertia::render('settings/Invoice', [
@@ -196,14 +198,14 @@ class SettingsController extends Controller
         ]);
 
         try {
-            Mail::raw('This is a test email from your invoice system.', function($message) use ($request) {
+            Mail::raw('This is a test email from your invoice system.', function ($message) use ($request) {
                 $message->to($request->test_email)
                     ->subject('Test Email - Invoice System');
             });
 
             return response()->json(['success' => true, 'message' => 'Test email sent successfully!']);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Failed to send test email: ' . $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Failed to send test email: '.$e->getMessage()]);
         }
     }
 
@@ -211,11 +213,11 @@ class SettingsController extends Controller
     {
         try {
             // Create database backup
-            $filename = 'backup_' . now()->format('Y_m_d_H_i_s') . '.sql';
-            $path = storage_path('app/backups/' . $filename);
+            $filename = 'backup_'.now()->format('Y_m_d_H_i_s').'.sql';
+            $path = storage_path('app/backups/'.$filename);
 
             // Ensure backup directory exists
-            if (!file_exists(dirname($path))) {
+            if (! file_exists(dirname($path))) {
                 mkdir(dirname($path), 0755, true);
             }
 
@@ -238,7 +240,7 @@ class SettingsController extends Controller
             }
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Failed to create backup: ' . $e->getMessage());
+                ->with('error', 'Failed to create backup: '.$e->getMessage());
         }
     }
 
@@ -256,13 +258,13 @@ class SettingsController extends Controller
                 ->with('success', 'Cache cleared successfully.');
         } catch (\Exception $e) {
             return redirect()->back()
-                ->with('error', 'Failed to clear cache: ' . $e->getMessage());
+                ->with('error', 'Failed to clear cache: '.$e->getMessage());
         }
     }
 
     private function getSettings()
     {
-        return Cache::remember('app_settings', 3600, function() {
+        return Cache::remember('app_settings', 3600, function () {
             $defaultSettings = [
                 // Company settings
                 'company_name' => config('app.name'),
@@ -316,6 +318,7 @@ class SettingsController extends Controller
     private function getSetting($key, $default = null)
     {
         $settings = $this->getSettings();
+
         return $settings[$key] ?? $default;
     }
 

@@ -2,17 +2,18 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Invoice extends Model
 {
-    use HasFactory;
+    use BelongsToOrganization, HasFactory;
 
     protected $fillable = [
-        'invoice_number', 'client_id', 'recurring_invoice_id', 'currency', 'exchange_rate',
+        'organization_id', 'invoice_number', 'client_id', 'recurring_invoice_id', 'currency', 'exchange_rate',
         'issue_date', 'due_date', 'status', 'subtotal', 'tax_rate', 'tax_amount',
-        'discount', 'total', 'amount_paid', 'notes', 'terms', 'sent_at', 'paid_at'
+        'discount', 'total', 'amount_paid', 'notes', 'terms', 'sent_at', 'paid_at',
     ];
 
     protected $casts = [
@@ -86,7 +87,7 @@ class Invoice extends Model
             'total' => $total
         ]);*/
 
-        $subtotal = $this->items->sum(function($item) {
+        $subtotal = $this->items->sum(function ($item) {
             return $item->quantity * $item->unit_price;
         });
 
@@ -96,7 +97,7 @@ class Invoice extends Model
         $this->update([
             'subtotal' => $subtotal,
             'tax_amount' => $tax_amount,
-            'total' => $total
+            'total' => $total,
         ]);
 
         return $this;
@@ -110,7 +111,7 @@ class Invoice extends Model
             $this->update([
                 'status' => 'paid',
                 'paid_at' => now(),
-                'amount_paid' => $totalPaid
+                'amount_paid' => $totalPaid,
             ]);
         } elseif ($totalPaid > 0 && $totalPaid < $this->total) {
             $this->update(['amount_paid' => $totalPaid]);
@@ -134,29 +135,30 @@ class Invoice extends Model
 
     public function getFormattedTotalAttribute(): string
     {
-        return $this->currency()->first()->symbol . number_format($this->total, 2);
+        return $this->currency()->first()->symbol.number_format($this->total, 2);
     }
 
     public static function generateInvoiceNumber(): string
     {
-        $prefix = 'INV-' . date('Y') . '-';
-        $lastInvoice = self::where('invoice_number', 'like', $prefix . '%')
+        $prefix = 'INV-'.date('Y').'-';
+        $lastInvoice = self::where('invoice_number', 'like', $prefix.'%')
             ->orderBy('invoice_number', 'desc')
             ->first();
 
         if ($lastInvoice) {
             $lastNumber = intval(substr($lastInvoice->invoice_number, strlen($prefix)));
-            return $prefix . str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
+
+            return $prefix.str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
         }
 
-        return $prefix . '0001';
+        return $prefix.'0001';
     }
 
     public function markAsSent(): void
     {
         $this->update([
             'status' => 'sent',
-            'sent_at' => now()
+            'sent_at' => now(),
         ]);
     }
 
@@ -165,7 +167,7 @@ class Invoice extends Model
         $this->update([
             'status' => 'paid',
             'paid_at' => now(),
-            'amount_paid' => $this->total
+            'amount_paid' => $this->total,
         ]);
     }
 
@@ -174,9 +176,9 @@ class Invoice extends Model
         /*return $query->where('due_date', '<', now())
             ->whereIn('status', ['sent', 'overdue']);*/
 
-        return $query->where(function($q) {
+        return $query->where(function ($q) {
             $q->where('status', 'overdue')
-                ->orWhere(function($sq) {
+                ->orWhere(function ($sq) {
                     $sq->where('status', 'sent')
                         ->where('due_date', '<', now());
                 });

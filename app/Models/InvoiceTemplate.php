@@ -2,15 +2,16 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class InvoiceTemplate extends Model
 {
-    use HasFactory;
+    use BelongsToOrganization, HasFactory;
 
     protected $fillable = [
-        'name', 'settings', 'is_default'
+        'organization_id', 'name', 'settings', 'is_default',
     ];
 
     protected $casts = [
@@ -24,13 +25,16 @@ class InvoiceTemplate extends Model
 
         static::creating(function ($template) {
             if ($template->is_default) {
-                static::where('is_default', true)->update(['is_default' => false]);
+                static::where('organization_id', $template->organization_id)
+                    ->where('is_default', true)
+                    ->update(['is_default' => false]);
             }
         });
 
         static::updating(function ($template) {
             if ($template->is_default) {
                 static::where('id', '!=', $template->id)
+                    ->where('organization_id', $template->organization_id)
                     ->where('is_default', true)
                     ->update(['is_default' => false]);
             }

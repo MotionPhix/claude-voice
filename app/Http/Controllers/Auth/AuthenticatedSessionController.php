@@ -33,6 +33,9 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // Set the user's first active organization as current
+        ensure_organization();
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

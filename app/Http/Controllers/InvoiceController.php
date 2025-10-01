@@ -8,20 +8,25 @@ use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Services\InvoiceService;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Traits\HasCurrency;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class InvoiceController extends Controller
 {
+    use HasCurrency;
+
     protected InvoiceService $invoiceService;
 
     public function __construct(InvoiceService $invoiceService)
     {
         $this->invoiceService = $invoiceService;
     }
+
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Invoice::class);
+
         $query = Invoice::with(['client', 'payments']);
 
         // Filter by status
@@ -37,9 +42,9 @@ class InvoiceController extends Controller
         // Search functionality
         if ($request->search) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('invoice_number', 'like', "%{$search}%")
-                    ->orWhereHas('client', function($clientQuery) use ($search) {
+                    ->orWhereHas('client', function ($clientQuery) use ($search) {
                         $clientQuery->where('name', 'like', "%{$search}%");
                     });
             });
@@ -56,30 +61,70 @@ class InvoiceController extends Controller
         $invoices = $query->orderBy('created_at', 'desc')->paginate(15);
         $clients = Client::where('is_active', true)->get();
 
+        // Calculate stats for the filtered invoices
+        $statsQuery = Invoice::query();
+        if ($request->status) {
+            $statsQuery->where('status', $request->status);
+        }
+        if ($request->client_id) {
+            $statsQuery->where('client_id', $request->client_id);
+        }
+        if ($request->search) {
+            $statsQuery->where(function ($q) use ($request) {
+                $q->where('invoice_number', 'like', "%{$request->search}%")
+                    ->orWhereHas('client', function ($clientQuery) use ($request) {
+                        $clientQuery->where('name', 'like', "%{$request->search}%");
+                    });
+            });
+        }
+        if ($request->date_from) {
+            $statsQuery->where('issue_date', '>=', $request->date_from);
+        }
+        if ($request->date_to) {
+            $statsQuery->where('issue_date', '<=', $request->date_to);
+        }
+
+        $stats = [
+            'total_amount' => $statsQuery->sum('total'),
+            'paid_amount' => $statsQuery->where('status', 'paid')->sum('total'),
+            'pending_amount' => $statsQuery->whereIn('status', ['sent', 'draft'])->sum('total'),
+            'overdue_amount' => $statsQuery->where('status', 'overdue')->sum('total'),
+            'total_count' => $statsQuery->count(),
+        ];
+
         return Inertia::render('invoices/Index', [
             'invoices' => $invoices,
             'clients' => $clients,
             'filters' => $request->only(['status', 'client_id', 'search', 'date_from', 'date_to']),
+            'stats' => $stats,
         ]);
     }
 
     public function create()
     {
+        $this->authorize('create', Invoice::class);
+
         $clients = Client::where('is_active', true)->get();
+        $currencies = $this->getCurrencyOptions();
+
         return Inertia::render('invoices/Create', [
             'clients' => $clients,
+            'currencies' => $currencies,
+            'defaultCurrency' => $this->getBaseCurrency()?->code ?? 'USD',
         ]);
     }
 
     public function store(StoreInvoiceRequest $request)
     {
+        $this->authorize('create', Invoice::class);
+
         $validated = $request->validated();
 
         $invoice = Invoice::create([
             'client_id' => $validated['client_id'],
             'issue_date' => $validated['issue_date'],
             'due_date' => $validated['due_date'],
-            'currency' => $validated['currency'] ?? 'USD',
+            'currency' => $validated['currency'] ?? $this->getBaseCurrency()?->code ?? 'USD',
             'tax_rate' => $validated['tax_rate'] ?? 0,
             'discount' => $validated['discount'] ?? 0,
             'notes' => $validated['notes'],
@@ -104,7 +149,10 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
+        $this->authorize('view', $invoice);
+
         $invoice->load(['client', 'items', 'payments']);
+
         return Inertia::render('invoices/Show', [
             'invoice' => $invoice,
         ]);
@@ -112,22 +160,28 @@ class InvoiceController extends Controller
 
     public function edit(Invoice $invoice)
     {
+        $this->authorize('update', $invoice);
+
         if ($invoice->status !== 'draft') {
             return redirect()->route('invoices.show', $invoice)
                 ->with('error', 'Only draft invoices can be edited.');
         }
 
         $clients = Client::where('is_active', true)->get();
+        $currencies = $this->getCurrencyOptions();
         $invoice->load('items');
 
         return Inertia::render('invoices/Edit', [
             'invoice' => $invoice,
             'clients' => $clients,
+            'currencies' => $currencies,
         ]);
     }
 
     public function update(UpdateInvoiceRequest $request, Invoice $invoice)
     {
+        $this->authorize('update', $invoice);
+
         $validated = $request->validated();
 
         $invoice->update([
@@ -161,18 +215,23 @@ class InvoiceController extends Controller
 
     public function destroy(Invoice $invoice)
     {
+        $this->authorize('delete', $invoice);
+
         if ($invoice->status === 'paid') {
             return redirect()->route('invoices.index')
                 ->with('error', 'Paid invoices cannot be deleted.');
         }
 
         $invoice->delete();
+
         return redirect()->route('invoices.index')
             ->with('success', 'Invoice deleted successfully.');
     }
 
     public function send(Invoice $invoice)
     {
+        $this->authorize('send', $invoice);
+
         if ($invoice->status !== 'draft') {
             return redirect()->route('invoices.show', $invoice)
                 ->with('error', 'Only draft invoices can be sent.');
@@ -180,25 +239,30 @@ class InvoiceController extends Controller
 
         try {
             $this->invoiceService->sendInvoiceEmail($invoice);
-            
+
             return redirect()->route('invoices.show', $invoice)
-                ->with('success', 'Invoice sent successfully to ' . $invoice->client->email . '.');
+                ->with('success', 'Invoice sent successfully to '.$invoice->client->email.'.');
         } catch (\Exception $e) {
             return redirect()->route('invoices.show', $invoice)
-                ->with('error', 'Failed to send invoice: ' . $e->getMessage());
+                ->with('error', 'Failed to send invoice: '.$e->getMessage());
         }
     }
 
     public function pdf(Invoice $invoice)
     {
+        $this->authorize('downloadPdf', $invoice);
+
         $pdf = $this->invoiceService->generatePdf($invoice);
+
         return $pdf->download("invoice-{$invoice->invoice_number}.pdf");
     }
 
     public function duplicate(Invoice $invoice)
     {
+        $this->authorize('duplicate', $invoice);
+
         $newInvoice = $invoice->replicate([
-            'invoice_number', 'status', 'sent_at', 'paid_at', 'amount_paid'
+            'invoice_number', 'status', 'sent_at', 'paid_at', 'amount_paid',
         ]);
 
         $newInvoice->status = 'draft';
@@ -215,6 +279,6 @@ class InvoiceController extends Controller
         $newInvoice->calculateTotals();
 
         return redirect()->route('invoices.edit', $newInvoice)
-            ->with('success', 'Invoice duplicated successfully as ' . $newInvoice->invoice_number . '.');
+            ->with('success', 'Invoice duplicated successfully as '.$newInvoice->invoice_number.'.');
     }
 }

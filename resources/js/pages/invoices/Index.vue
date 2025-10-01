@@ -446,7 +446,7 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                     </p>
                                 </div>
                                 <div class="p-2 bg-red-100 dark:bg-red-900/20 rounded-full">
-                                    <AlertTriangle class="h-5 w-5 text-red-600" />
+                                    <AlertCircle class="h-5 w-5 text-red-600" />
                                 </div>
                             </div>
                         </CardContent>
@@ -600,18 +600,18 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                 <!-- View Toggle -->
                                 <div class="flex items-center border rounded-lg">
                                     <Button
-                                        variant={viewMode === 'table' ? 'default' : 'ghost'}
-                                        size="sm"
-                                        @click="viewMode = 'table'"
-                                        class="rounded-r-none"
+                                    :variant="viewMode === 'table' ? 'default' : 'ghost'"
+                                    size="sm"
+                                    @click="viewMode = 'table'"
+                                    class="rounded-r-none"
                                     >
                                         <List class="h-4 w-4" />
                                     </Button>
                                     <Button
-                                        variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                                        size="sm"
-                                        @click="viewMode = 'grid'"
-                                        class="rounded-l-none border-l"
+                                    :variant="viewMode === 'grid' ? 'default' : 'ghost'"
+                                    size="sm"
+                                    @click="viewMode = 'grid'"
+                                    class="rounded-l-none border-l"
                                     >
                                         <Grid class="h-4 w-4" />
                                     </Button>

@@ -39,6 +39,13 @@ interface Client {
     state?: string;
     postal_code?: string;
     country?: string;
+    currency?: string;
+}
+
+interface Currency {
+    value: string;
+    label: string;
+    symbol: string;
 }
 
 interface InvoiceItem {
@@ -73,6 +80,7 @@ interface Invoice {
 interface Props {
     invoice: Invoice;
     clients: Client[];
+    currencies: Currency[];
 }
 
 const props = defineProps<Props>();
@@ -113,21 +121,18 @@ const clientForm = useForm({
     city: '',
     state: '',
     postal_code: '',
-    country: ''
+    country: '',
+    currency: props.invoice.currency
 });
 
-const currencies = [
-    { value: 'USD', label: 'USD - US Dollar' },
-    { value: 'EUR', label: 'EUR - Euro' },
-    { value: 'GBP', label: 'GBP - British Pound' },
-    { value: 'CAD', label: 'CAD - Canadian Dollar' },
-    { value: 'AUD', label: 'AUD - Australian Dollar' },
-    { value: 'ZAR', label: 'ZAR - South African Rand' }
-];
+const currencies = ref(props.currencies);
+const clients = ref([...props.clients]);
 
 // Computed properties
+const hasClients = computed(() => clients.value.length > 0);
+
 const selectedClient = computed(() => {
-    return props.clients.find(client => client.id.toString() === form.client_id);
+    return clients.value.find(client => client.id.toString() === form.client_id);
 });
 
 const subtotal = computed(() => {
@@ -184,7 +189,7 @@ const createClient = () => {
     clientForm.post('/clients', {
         onSuccess: (page) => {
             const newClient = page.props.client as Client;
-            props.clients.push(newClient);
+            clients.value.push(newClient);
             form.client_id = newClient.id.toString();
             showClientDialog.value = false;
             clientForm.reset();
@@ -366,6 +371,9 @@ watch(() => form.items, () => {
                                                     placeholder="Client name"
                                                     class="mt-1"
                                                 />
+                                                <div v-if="clientForm.errors.name" class="text-sm text-red-600 mt-1">
+                                                    {{ clientForm.errors.name }}
+                                                </div>
                                             </div>
                                             <div>
                                                 <Label for="client_email">Email</Label>
@@ -376,6 +384,80 @@ watch(() => form.items, () => {
                                                     placeholder="client@example.com"
                                                     class="mt-1"
                                                 />
+                                                <div v-if="clientForm.errors.email" class="text-sm text-red-600 mt-1">
+                                                    {{ clientForm.errors.email }}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <Label for="client_phone">Phone</Label>
+                                                <Input
+                                                    id="client_phone"
+                                                    v-model="clientForm.phone"
+                                                    placeholder="Phone number"
+                                                    class="mt-1"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label for="client_address">Address</Label>
+                                                <Textarea
+                                                    id="client_address"
+                                                    v-model="clientForm.address"
+                                                    placeholder="Street address"
+                                                    class="mt-1"
+                                                />
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <Label for="client_city">City</Label>
+                                                    <Input
+                                                        id="client_city"
+                                                        v-model="clientForm.city"
+                                                        placeholder="City"
+                                                        class="mt-1"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label for="client_state">State</Label>
+                                                    <Input
+                                                        id="client_state"
+                                                        v-model="clientForm.state"
+                                                        placeholder="State"
+                                                        class="mt-1"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <Label for="client_postal_code">Postal Code</Label>
+                                                    <Input
+                                                        id="client_postal_code"
+                                                        v-model="clientForm.postal_code"
+                                                        placeholder="12345"
+                                                        class="mt-1"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label for="client_country">Country</Label>
+                                                    <Input
+                                                        id="client_country"
+                                                        v-model="clientForm.country"
+                                                        placeholder="Country"
+                                                        class="mt-1"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <Label for="client_currency">Default Currency</Label>
+                                                <Select v-model="clientForm.currency">
+                                                    <SelectTrigger class="mt-1">
+                                                        <SelectValue placeholder="Select currency..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem v-for="currency in currencies" :key="currency.value" :value="currency.value">
+                                                            {{ currency.label }}
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                         </div>
                                         <DialogFooter>
@@ -391,7 +473,7 @@ watch(() => form.items, () => {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div>
+                            <div v-if="hasClients">
                                 <Label for="client_id">Select Client</Label>
                                 <Select v-model="form.client_id" :disabled="!canEdit">
                                     <SelectTrigger class="mt-1">
@@ -403,6 +485,40 @@ watch(() => form.items, () => {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <div v-if="form.errors.client_id" class="text-sm text-red-600 mt-1">
+                                    {{ form.errors.client_id }}
+                                </div>
+                            </div>
+
+                            <!-- No clients state -->
+                            <div v-else class="text-center py-8 px-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                                <div class="text-gray-500 mb-4">
+                                    <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-lg font-medium text-gray-900 mb-2">No clients found</h3>
+                                <p class="text-gray-600 mb-4">You need to create at least one client before you can edit this invoice.</p>
+                                <Button v-if="canEdit" @click="showClientDialog = true" class="inline-flex items-center">
+                                    <Plus class="h-4 w-4 mr-2" />
+                                    Create Your First Client
+                                </Button>
+                            </div>
+
+                            <!-- Selected Client Preview -->
+                            <div v-if="selectedClient" class="mt-4 p-4 bg-gray-50 rounded-lg">
+                                <h4 class="font-medium mb-2">{{ selectedClient.name }}</h4>
+                                <div class="text-sm text-gray-600 space-y-1">
+                                    <div>{{ selectedClient.email }}</div>
+                                    <div v-if="selectedClient.phone">{{ selectedClient.phone }}</div>
+                                    <div v-if="selectedClient.address">
+                                        <div>{{ selectedClient.address }}</div>
+                                        <div v-if="selectedClient.city || selectedClient.state || selectedClient.postal_code">
+                                            {{ selectedClient.city }}{{ selectedClient.city && (selectedClient.state || selectedClient.postal_code) ? ', ' : '' }}{{ selectedClient.state }} {{ selectedClient.postal_code }}
+                                        </div>
+                                        <div v-if="selectedClient.country">{{ selectedClient.country }}</div>
+                                    </div>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>

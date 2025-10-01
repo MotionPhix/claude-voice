@@ -12,6 +12,8 @@ class RecurringInvoiceController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', RecurringInvoice::class);
+
         $query = RecurringInvoice::with(['client', 'items']);
 
         if ($request->status) {
@@ -28,9 +30,9 @@ class RecurringInvoiceController extends Controller
 
         if ($request->search) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhereHas('client', function($clientQuery) use ($search) {
+                    ->orWhereHas('client', function ($clientQuery) use ($search) {
                         $clientQuery->where('name', 'like', "%{$search}%");
                     });
             });
@@ -48,6 +50,8 @@ class RecurringInvoiceController extends Controller
 
     public function create()
     {
+        $this->authorize('create', RecurringInvoice::class);
+
         $clients = Client::where('is_active', true)->get();
 
         return Inertia::render('recurring-invoices/Create', [
@@ -57,6 +61,8 @@ class RecurringInvoiceController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', RecurringInvoice::class);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'client_id' => 'required|exists:clients,id',
@@ -111,7 +117,9 @@ class RecurringInvoiceController extends Controller
 
     public function show(RecurringInvoice $recurringInvoice)
     {
-        $recurringInvoice->load(['client', 'items', 'invoices' => function($query) {
+        $this->authorize('view', $recurringInvoice);
+
+        $recurringInvoice->load(['client', 'items', 'invoices' => function ($query) {
             $query->latest()->with('payments');
         }]);
 
@@ -122,6 +130,8 @@ class RecurringInvoiceController extends Controller
 
     public function edit(RecurringInvoice $recurringInvoice)
     {
+        $this->authorize('update', $recurringInvoice);
+
         $clients = Client::where('is_active', true)->get();
         $recurringInvoice->load('items');
 
@@ -133,6 +143,8 @@ class RecurringInvoiceController extends Controller
 
     public function update(Request $request, RecurringInvoice $recurringInvoice)
     {
+        $this->authorize('update', $recurringInvoice);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'client_id' => 'required|exists:clients,id',
@@ -202,6 +214,8 @@ class RecurringInvoiceController extends Controller
 
     public function destroy(RecurringInvoice $recurringInvoice)
     {
+        $this->authorize('delete', $recurringInvoice);
+
         if ($recurringInvoice->invoices()->count() > 0) {
             return redirect()->route('recurring-invoices.index')
                 ->with('error', 'Cannot delete recurring invoice with generated invoices.');
@@ -215,6 +229,8 @@ class RecurringInvoiceController extends Controller
 
     public function activate(RecurringInvoice $recurringInvoice)
     {
+        $this->authorize('toggleStatus', $recurringInvoice);
+
         $recurringInvoice->update(['is_active' => true]);
 
         return redirect()->route('recurring-invoices.show', $recurringInvoice)
@@ -223,6 +239,8 @@ class RecurringInvoiceController extends Controller
 
     public function deactivate(RecurringInvoice $recurringInvoice)
     {
+        $this->authorize('toggleStatus', $recurringInvoice);
+
         $recurringInvoice->update(['is_active' => false]);
 
         return redirect()->route('recurring-invoices.show', $recurringInvoice)
@@ -231,14 +249,16 @@ class RecurringInvoiceController extends Controller
 
     public function generateInvoice(RecurringInvoice $recurringInvoice)
     {
-        if (!$recurringInvoice->is_active) {
+        $this->authorize('generateInvoice', $recurringInvoice);
+
+        if (! $recurringInvoice->is_active) {
             return redirect()->route('recurring-invoices.show', $recurringInvoice)
                 ->with('error', 'Cannot generate invoice from inactive recurring invoice.');
         }
 
         $invoice = $recurringInvoice->generateInvoice();
 
-        if (!$invoice) {
+        if (! $invoice) {
             return redirect()->route('recurring-invoices.show', $recurringInvoice)
                 ->with('error', 'Invoice generation failed. Check recurring invoice settings.');
         }
