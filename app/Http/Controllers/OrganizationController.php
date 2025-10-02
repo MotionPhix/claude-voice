@@ -21,6 +21,28 @@ class OrganizationController extends Controller
         ]);
     }
 
+    public function select()
+    {
+        $organizations = auth()->user()->organizations()
+            ->withPivot('role', 'joined_at')
+            ->get();
+
+        // If user has only one organization, automatically select it
+        if ($organizations->count() === 1) {
+            set_current_organization($organizations->first());
+            return redirect()->route('dashboard');
+        }
+
+        // If user has no organizations, redirect to create
+        if ($organizations->count() === 0) {
+            return redirect()->route('organizations.create');
+        }
+
+        return Inertia::render('organizations/Select', [
+            'organizations' => $organizations,
+        ]);
+    }
+
     public function create()
     {
         $this->authorize('create', Organization::class);

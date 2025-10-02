@@ -1,7 +1,32 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan test --parallel)",
+      "mcp__laravel-boost__browser-logs",
+      "mcp__laravel-boost__tinker",
+      "Bash(composer:*)",
+      "Bash(php:*)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat -r \"require_once ''vendor/autoload.php''; echo function_exists(''current_organization'') ? ''YES'' : ''NO'';\")",
+      "mcp__laravel-boost__database-query",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan db:seed --class=DevelopmentSeeder)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan list)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan route:list)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan test --filter=\"organization\" --stop-on-failure)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan test --filter=\"Policy\" --stop-on-failure)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan test --filter=\"InvoicePolicy.*denies updating sent invoices\")",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan test tests/Unit/Policies/InvoicePolicyTest.php --stop-on-failure)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan test tests/Unit/Policies/InvoicePolicyTest.php)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan test --filter=\"update.*invoice\" --stop-on-failure)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan test --filter=\"cannot delete paid invoice\" --stop-on-failure)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan route:list --path=dashboard)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan make:middleware EnsureUserCanAccessResource --no-interaction)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan route:list --path=reports)",
+      "Bash(curl:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "laravel-boost",
     "herd"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

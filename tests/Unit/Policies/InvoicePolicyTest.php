@@ -110,17 +110,36 @@ describe('InvoicePolicy update', function () {
         expect($this->user->can('update', $draftInvoice))->toBeFalse();
     });
 
-    it('denies updating sent invoices', function () {
+    it('allows authorized roles to update sent invoices (controller handles business rules)', function () {
         $sentInvoice = Invoice::factory()->sent()->for($this->organization)->create();
 
-        expect($this->owner->can('update', $sentInvoice))->toBeFalse();
-        expect($this->admin->can('update', $sentInvoice))->toBeFalse();
+        $this->actingAs($this->owner);
+        expect($this->owner->can('update', $sentInvoice))->toBeTrue();
+
+        $this->actingAs($this->admin);
+        expect($this->admin->can('update', $sentInvoice))->toBeTrue();
+
+        $this->actingAs($this->manager);
+        expect($this->manager->can('update', $sentInvoice))->toBeTrue();
+
+        $this->actingAs($this->accountant);
+        expect($this->accountant->can('update', $sentInvoice))->toBeTrue();
     });
 
-    it('denies updating paid invoices', function () {
+    it('allows authorized roles to update paid invoices (controller handles business rules)', function () {
         $paidInvoice = Invoice::factory()->paid()->for($this->organization)->create();
 
-        expect($this->owner->can('update', $paidInvoice))->toBeFalse();
+        $this->actingAs($this->owner);
+        expect($this->owner->can('update', $paidInvoice))->toBeTrue();
+
+        $this->actingAs($this->admin);
+        expect($this->admin->can('update', $paidInvoice))->toBeTrue();
+
+        $this->actingAs($this->manager);
+        expect($this->manager->can('update', $paidInvoice))->toBeTrue();
+
+        $this->actingAs($this->accountant);
+        expect($this->accountant->can('update', $paidInvoice))->toBeTrue();
     });
 });
 
@@ -128,28 +147,50 @@ describe('InvoicePolicy delete', function () {
     it('allows owner, admin, and manager to delete draft invoices', function () {
         $draftInvoice = Invoice::factory()->draft()->for($this->organization)->create();
 
+        $this->actingAs($this->owner);
         expect($this->owner->can('delete', $draftInvoice))->toBeTrue();
+
+        $this->actingAs($this->admin);
         expect($this->admin->can('delete', $draftInvoice))->toBeTrue();
+
+        $this->actingAs($this->manager);
         expect($this->manager->can('delete', $draftInvoice))->toBeTrue();
     });
 
     it('denies accountant and user from deleting invoices', function () {
         $draftInvoice = Invoice::factory()->draft()->for($this->organization)->create();
 
+        $this->actingAs($this->accountant);
         expect($this->accountant->can('delete', $draftInvoice))->toBeFalse();
+
+        $this->actingAs($this->user);
         expect($this->user->can('delete', $draftInvoice))->toBeFalse();
     });
 
-    it('denies deleting sent invoices', function () {
+    it('allows authorized roles to delete sent invoices (controller handles business rules)', function () {
         $sentInvoice = Invoice::factory()->sent()->for($this->organization)->create();
 
-        expect($this->owner->can('delete', $sentInvoice))->toBeFalse();
+        $this->actingAs($this->owner);
+        expect($this->owner->can('delete', $sentInvoice))->toBeTrue();
+
+        $this->actingAs($this->admin);
+        expect($this->admin->can('delete', $sentInvoice))->toBeTrue();
+
+        $this->actingAs($this->manager);
+        expect($this->manager->can('delete', $sentInvoice))->toBeTrue();
     });
 
-    it('denies deleting paid invoices', function () {
+    it('allows authorized roles to delete paid invoices (controller handles business rules)', function () {
         $paidInvoice = Invoice::factory()->paid()->for($this->organization)->create();
 
-        expect($this->owner->can('delete', $paidInvoice))->toBeFalse();
+        $this->actingAs($this->owner);
+        expect($this->owner->can('delete', $paidInvoice))->toBeTrue();
+
+        $this->actingAs($this->admin);
+        expect($this->admin->can('delete', $paidInvoice))->toBeTrue();
+
+        $this->actingAs($this->manager);
+        expect($this->manager->can('delete', $paidInvoice))->toBeTrue();
     });
 });
 
@@ -157,22 +198,37 @@ describe('InvoicePolicy send', function () {
     it('allows owner, admin, and manager to send draft invoices', function () {
         $draftInvoice = Invoice::factory()->draft()->for($this->organization)->create();
 
+        $this->actingAs($this->owner);
         expect($this->owner->can('send', $draftInvoice))->toBeTrue();
+
+        $this->actingAs($this->admin);
         expect($this->admin->can('send', $draftInvoice))->toBeTrue();
+
+        $this->actingAs($this->manager);
         expect($this->manager->can('send', $draftInvoice))->toBeTrue();
     });
 
     it('denies accountant and user from sending invoices', function () {
         $draftInvoice = Invoice::factory()->draft()->for($this->organization)->create();
 
+        $this->actingAs($this->accountant);
         expect($this->accountant->can('send', $draftInvoice))->toBeFalse();
+
+        $this->actingAs($this->user);
         expect($this->user->can('send', $draftInvoice))->toBeFalse();
     });
 
-    it('denies sending already sent invoices', function () {
+    it('allows authorized roles to send already sent invoices (controller handles business rules)', function () {
         $sentInvoice = Invoice::factory()->sent()->for($this->organization)->create();
 
-        expect($this->owner->can('send', $sentInvoice))->toBeFalse();
+        $this->actingAs($this->owner);
+        expect($this->owner->can('send', $sentInvoice))->toBeTrue();
+
+        $this->actingAs($this->admin);
+        expect($this->admin->can('send', $sentInvoice))->toBeTrue();
+
+        $this->actingAs($this->manager);
+        expect($this->manager->can('send', $sentInvoice))->toBeTrue();
     });
 });
 

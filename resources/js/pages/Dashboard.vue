@@ -24,6 +24,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import RoleBadge from '@/components/ui/role-badge.vue';
+import { usePermissions } from '@/composables/usePermissions';
 
 interface DashboardStats {
   total_invoices: number;
@@ -123,6 +125,15 @@ const props = withDefaults(defineProps<Props>(), {
     { month: 'Jun', revenue: 89750 }
   ]
 });
+
+// Permissions
+const {
+  userRole,
+  userRoleLabel,
+  canCreateInvoices,
+  canViewReports,
+  canCreateClients
+} = usePermissions();
 
 // Format currency
 const formatCurrency = (amount: number): string => {
@@ -430,9 +441,12 @@ const collectionChartSeries = computed(() => [collectionRate.value]);
     <div class="px-4 sm:px-6 lg:px-8 py-8">
       <!-- Welcome Section -->
       <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-          Good morning! 👋
-        </h1>
+        <div class="flex items-center gap-3 mb-2">
+          <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+            Good morning! 👋
+          </h1>
+          <RoleBadge v-if="userRole" :role="userRole" />
+        </div>
         <p class="mt-2 text-gray-600 dark:text-gray-400">
           Here's what's happening with your business today.
         </p>
@@ -642,30 +656,62 @@ const collectionChartSeries = computed(() => [collectionRate.value]);
           </CardHeader>
           <CardContent>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Link href="/invoices/create">
+              <Link v-if="canCreateInvoices" :href="route('invoices.create')">
                 <Button class="w-full h-20 flex-col gap-2">
                   <Plus class="h-5 w-5" />
                   <span class="text-xs">Create Invoice</span>
                 </Button>
               </Link>
-              <Link href="/clients/create">
+              <Button
+                v-else
+                disabled
+                class="w-full h-20 flex-col gap-2 opacity-50 cursor-not-allowed"
+                title="You need at least Accountant permissions to create invoices"
+              >
+                <Plus class="h-5 w-5" />
+                <span class="text-xs">Create Invoice</span>
+              </Button>
+
+              <Link v-if="canCreateClients" :href="route('clients.create')">
                 <Button variant="outline" class="w-full h-20 flex-col gap-2">
                   <Users class="h-5 w-5" />
                   <span class="text-xs">Add Client</span>
                 </Button>
               </Link>
-              <Link href="/invoices?status=overdue">
+              <Button
+                v-else
+                disabled
+                variant="outline"
+                class="w-full h-20 flex-col gap-2 opacity-50 cursor-not-allowed"
+                title="You need at least Accountant permissions to add clients"
+              >
+                <Users class="h-5 w-5" />
+                <span class="text-xs">Add Client</span>
+              </Button>
+
+              <Link :href="route('invoices.index', { status: 'overdue' })">
                 <Button variant="outline" class="w-full h-20 flex-col gap-2">
                   <AlertTriangle class="h-5 w-5" />
                   <span class="text-xs">View Overdue</span>
                 </Button>
               </Link>
-              <Link href="/reports">
+
+              <Link v-if="canViewReports" :href="route('reports.index')">
                 <Button variant="outline" class="w-full h-20 flex-col gap-2">
                   <FileText class="h-5 w-5" />
                   <span class="text-xs">Reports</span>
                 </Button>
               </Link>
+              <Button
+                v-else
+                disabled
+                variant="outline"
+                class="w-full h-20 flex-col gap-2 opacity-50 cursor-not-allowed"
+                title="You need at least Accountant permissions to view reports"
+              >
+                <FileText class="h-5 w-5" />
+                <span class="text-xs">Reports</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -681,7 +727,7 @@ const collectionChartSeries = computed(() => [collectionRate.value]);
                 <CardTitle>Recent Invoices</CardTitle>
                 <CardDescription>Latest invoice activity</CardDescription>
               </div>
-              <Link href="/invoices">
+              <Link :href="route('invoices.index')">
                 <Button variant="ghost" size="sm">
                   View all
                   <ArrowRight class="ml-2 h-4 w-4" />
@@ -740,12 +786,15 @@ const collectionChartSeries = computed(() => [collectionRate.value]);
                   Get started by creating your first invoice.
                 </p>
                 <div class="mt-6">
-                  <Link href="/invoices/create">
+                  <Link v-if="canCreateInvoices" :href="route('invoices.create')">
                     <Button>
                       <Plus class="mr-2 h-4 w-4" />
                       Create Invoice
                     </Button>
                   </Link>
+                  <p v-else class="text-sm text-gray-500">
+                    You need at least Accountant permissions to create invoices
+                  </p>
                 </div>
               </div>
             </div>
@@ -760,7 +809,7 @@ const collectionChartSeries = computed(() => [collectionRate.value]);
                 <CardTitle>Upcoming Due</CardTitle>
                 <CardDescription>Invoices due soon</CardDescription>
               </div>
-              <Link href="/invoices?due_soon=7">
+              <Link :href="route('invoices.index', { due_soon: 7 })">
                 <Button variant="ghost" size="sm">
                   View all
                   <ArrowRight class="ml-2 h-4 w-4" />

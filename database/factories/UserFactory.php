@@ -2,6 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Enums\MembershipRole;
+use App\Models\Membership;
+use App\Models\Organization;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -40,5 +43,67 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    /**
+     * Create a user with their own organization as owner.
+     */
+    public function withOrganization(string $role = 'owner'): static
+    {
+        return $this->afterCreating(function ($user) use ($role) {
+            $organization = Organization::factory()->create();
+
+            Membership::factory()
+                ->for($user)
+                ->for($organization)
+                ->state(['role' => MembershipRole::from($role)->value])
+                ->create();
+        });
+    }
+
+    /**
+     * Create a user that belongs to an existing organization.
+     */
+    public function inOrganization(Organization $organization, string $role = 'user'): static
+    {
+        return $this->afterCreating(function ($user) use ($organization, $role) {
+            Membership::factory()
+                ->for($user)
+                ->for($organization)
+                ->state(['role' => MembershipRole::from($role)->value])
+                ->create();
+        });
+    }
+
+    /**
+     * Create a user as an admin.
+     */
+    public function admin(): static
+    {
+        return $this->withOrganization('admin');
+    }
+
+    /**
+     * Create a user as an owner.
+     */
+    public function owner(): static
+    {
+        return $this->withOrganization('owner');
+    }
+
+    /**
+     * Create a user as a manager.
+     */
+    public function manager(): static
+    {
+        return $this->withOrganization('manager');
+    }
+
+    /**
+     * Create a user as an accountant.
+     */
+    public function accountant(): static
+    {
+        return $this->withOrganization('accountant');
     }
 }

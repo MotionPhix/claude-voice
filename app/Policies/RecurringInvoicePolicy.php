@@ -3,17 +3,37 @@
 namespace App\Policies;
 
 use App\Enums\MembershipRole;
+use App\Models\Membership;
 use App\Models\RecurringInvoice;
 use App\Models\User;
 
 class RecurringInvoicePolicy
 {
+    protected function membershipFor(User $user, ?int $organizationId = null): ?Membership
+    {
+        $orgId = $organizationId ?? null;
+
+        if (! $orgId) {
+            // Try current organization helper as fallback
+            if (function_exists('current_organization_id')) {
+                $orgId = current_organization_id();
+            }
+        }
+
+        if (! $orgId) {
+            return null;
+        }
+
+        return Membership::where('user_id', $user->id)
+            ->where('organization_id', $orgId)
+            ->first();
+    }
     /**
      * Determine if the user can view any recurring invoices.
      */
     public function viewAny(User $user): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user);
 
         if (! $membership) {
             return false;
@@ -28,14 +48,14 @@ class RecurringInvoicePolicy
      */
     public function view(User $user, RecurringInvoice $recurringInvoice): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user, $recurringInvoice->organization_id);
 
         if (! $membership) {
             return false;
         }
 
-        // Ensure recurring invoice belongs to current organization
-        if ($recurringInvoice->organization_id !== current_organization_id()) {
+        // Ensure recurring invoice belongs to same organization
+        if ($recurringInvoice->organization_id !== $membership->organization_id) {
             return false;
         }
 
@@ -48,7 +68,7 @@ class RecurringInvoicePolicy
      */
     public function create(User $user): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user);
 
         if (! $membership) {
             return false;
@@ -67,14 +87,14 @@ class RecurringInvoicePolicy
      */
     public function update(User $user, RecurringInvoice $recurringInvoice): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user, $recurringInvoice->organization_id);
 
         if (! $membership) {
             return false;
         }
 
-        // Ensure recurring invoice belongs to current organization
-        if ($recurringInvoice->organization_id !== current_organization_id()) {
+        // Ensure recurring invoice belongs to same organization
+        if ($recurringInvoice->organization_id !== $membership->organization_id) {
             return false;
         }
 
@@ -91,14 +111,14 @@ class RecurringInvoicePolicy
      */
     public function delete(User $user, RecurringInvoice $recurringInvoice): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user, $recurringInvoice->organization_id);
 
         if (! $membership) {
             return false;
         }
 
-        // Ensure recurring invoice belongs to current organization
-        if ($recurringInvoice->organization_id !== current_organization_id()) {
+        // Ensure recurring invoice belongs to same organization
+        if ($recurringInvoice->organization_id !== $membership->organization_id) {
             return false;
         }
 
@@ -114,14 +134,14 @@ class RecurringInvoicePolicy
      */
     public function toggleStatus(User $user, RecurringInvoice $recurringInvoice): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user, $recurringInvoice->organization_id);
 
         if (! $membership) {
             return false;
         }
 
-        // Ensure recurring invoice belongs to current organization
-        if ($recurringInvoice->organization_id !== current_organization_id()) {
+        // Ensure recurring invoice belongs to same organization
+        if ($recurringInvoice->organization_id !== $membership->organization_id) {
             return false;
         }
 
@@ -138,14 +158,14 @@ class RecurringInvoicePolicy
      */
     public function generateInvoice(User $user, RecurringInvoice $recurringInvoice): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user, $recurringInvoice->organization_id);
 
         if (! $membership) {
             return false;
         }
 
-        // Ensure recurring invoice belongs to current organization
-        if ($recurringInvoice->organization_id !== current_organization_id()) {
+        // Ensure recurring invoice belongs to same organization
+        if ($recurringInvoice->organization_id !== $membership->organization_id) {
             return false;
         }
 

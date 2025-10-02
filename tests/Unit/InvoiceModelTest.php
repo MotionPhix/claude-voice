@@ -211,7 +211,7 @@ test('overdue scope returns correct invoices', function () {
         'due_date' => now()->subDays(5) // Paid, so not overdue
     ]);
 
-    $overdueInvoices = Invoice::overdue()->get();
+    $overdueInvoices = Invoice::withoutGlobalScopes()->overdue()->get();
 
     expect($overdueInvoices)->toHaveCount(2);
     
@@ -233,7 +233,7 @@ test('due today scope returns correct invoices', function () {
         'due_date' => today() // Paid, so not due
     ]);
 
-    $dueTodayInvoices = Invoice::dueToday()->get();
+    $dueTodayInvoices = Invoice::withoutGlobalScopes()->dueToday()->get();
 
     expect($dueTodayInvoices)->toHaveCount(1);
     expect($dueTodayInvoices->first()->id)->toBe($dueTodayInvoice->id);
@@ -252,7 +252,7 @@ test('due soon scope returns correct invoices', function () {
         'due_date' => today()->addDays(10) // Too far in future
     ]);
 
-    $dueSoonInvoices = Invoice::dueSoon(7)->get();
+    $dueSoonInvoices = Invoice::withoutGlobalScopes()->dueSoon(7)->get();
 
     expect($dueSoonInvoices)->toHaveCount(2);
     

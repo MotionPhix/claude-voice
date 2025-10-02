@@ -1,93 +1,46 @@
 <?php
 
-use App\Http\Controllers\ClientController;
-use App\Http\Controllers\CurrencyController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\InvoiceController;
-use App\Http\Controllers\MemberController;
-use App\Http\Controllers\OrganizationController;
-use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\RecurringInvoiceController;
-use App\Http\Controllers\ReportsController;
-use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+|
+| This file contains the main web routes for the application.
+| Role-specific routes are organized in separate files for better
+| maintainability and clear permission boundaries.
+|
+*/
 
 Route::get('/', function () {
     return Inertia::render('Welcome', []);
 })->name('home');
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+/*
+|--------------------------------------------------------------------------
+| Role-based Route Includes
+|--------------------------------------------------------------------------
+|
+| Routes are organized by access level and functionality:
+| - shared.php: Routes available to all authenticated users
+| - manager.php: Business operations (Manager+ level)
+| - accountant.php: Financial operations (Accountant+ level)
+| - admin.php: Administrative functions (Admin+ level)
+|
+*/
 
-    // Organization routes
-    Route::prefix('organizations')->name('organizations.')->group(function () {
-        Route::get('/', [OrganizationController::class, 'index'])->name('index');
-        Route::get('/create', [OrganizationController::class, 'create'])->name('create');
-        Route::post('/', [OrganizationController::class, 'store'])->name('store');
-        Route::get('/{organization}/settings', [OrganizationController::class, 'settings'])->name('settings');
-        Route::put('/{organization}', [OrganizationController::class, 'update'])->name('update');
-        Route::delete('/{organization}', [OrganizationController::class, 'destroy'])->name('destroy');
-        Route::post('/{organization}/switch', [OrganizationController::class, 'switch'])->name('switch');
+require __DIR__.'/shared.php';      // All authenticated users
+require __DIR__.'/manager.php';     // Manager level and above
+require __DIR__.'/accountant.php';  // Accountant level and above
+require __DIR__.'/admin.php';       // Admin level and above
 
-        // Member management
-        Route::prefix('{organization}/members')->name('members.')->group(function () {
-            Route::get('/invite', [MemberController::class, 'invite'])->name('invite');
-            Route::post('/invite', [MemberController::class, 'sendInvite'])->name('send-invite');
-            Route::put('/{member}/role', [MemberController::class, 'updateRole'])->name('update-role');
-            Route::delete('/{member}', [MemberController::class, 'remove'])->name('remove');
-        });
-    });
-
-    // Invoice routes
-    Route::resource('invoices', InvoiceController::class);
-    Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
-    Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
-    Route::post('invoices/{invoice}/duplicate', [InvoiceController::class, 'duplicate'])->name('invoices.duplicate');
-
-    // Client routes
-    Route::resource('clients', ClientController::class);
-
-    // Payment routes
-    Route::post('invoices/{invoice}/payments', [PaymentController::class, 'store'])->name('payments.store');
-    Route::delete('payments/{payment}', [PaymentController::class, 'destroy'])->name('payments.destroy');
-
-    // Recurring Invoice routes
-    Route::resource('recurring-invoices', RecurringInvoiceController::class);
-    Route::post('recurring-invoices/{recurringInvoice}/activate', [RecurringInvoiceController::class, 'activate'])->name('recurring-invoices.activate');
-    Route::post('recurring-invoices/{recurringInvoice}/deactivate', [RecurringInvoiceController::class, 'deactivate'])->name('recurring-invoices.deactivate');
-    Route::post('recurring-invoices/{recurringInvoice}/generate', [RecurringInvoiceController::class, 'generateInvoice'])->name('recurring-invoices.generate');
-
-    // Currency routes
-    Route::resource('currencies', CurrencyController::class);
-    Route::post('currencies/update-rates', [CurrencyController::class, 'updateRates'])->name('currencies.update-rates');
-    Route::post('currencies/{currency}/set-base', [CurrencyController::class, 'setBase'])->name('currencies.set-base');
-    Route::post('currencies/convert', [CurrencyController::class, 'convert'])->name('currencies.convert');
-
-    // Reports routes
-    Route::prefix('reports')->name('reports.')->group(function () {
-        Route::get('/', [ReportsController::class, 'index'])->name('index');
-        Route::get('/revenue', [ReportsController::class, 'revenue'])->name('revenue');
-        Route::get('/outstanding', [ReportsController::class, 'outstanding'])->name('outstanding');
-        Route::get('/payments', [ReportsController::class, 'payments'])->name('payments');
-        Route::get('/clients', [ReportsController::class, 'clients'])->name('clients');
-        Route::post('/export-pdf', [ReportsController::class, 'exportPdf'])->name('export-pdf');
-    });
-
-    // Settings routes
-    Route::prefix('settings')->name('settings.')->group(function () {
-        Route::get('/', [SettingsController::class, 'index'])->name('index');
-
-        Route::match(['GET', 'POST'], '/company', [SettingsController::class, 'company'])->name('company');
-        Route::match(['GET', 'POST'], '/invoice', [SettingsController::class, 'invoice'])->name('invoice');
-        Route::match(['GET', 'POST'], '/email', [SettingsController::class, 'email'])->name('email');
-        Route::match(['GET', 'POST'], '/payment', [SettingsController::class, 'payment'])->name('payment');
-
-        Route::post('/test-email', [SettingsController::class, 'testEmail'])->name('test-email');
-        Route::post('/backup', [SettingsController::class, 'backup'])->name('backup');
-        Route::post('/clear-cache', [SettingsController::class, 'clearCache'])->name('clear-cache');
-    });
-});
+/*
+|--------------------------------------------------------------------------
+| Authentication & Settings Routes
+|--------------------------------------------------------------------------
+*/
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

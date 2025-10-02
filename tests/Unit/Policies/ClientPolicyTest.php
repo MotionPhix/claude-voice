@@ -50,77 +50,122 @@ beforeEach(function () {
 
 describe('ClientPolicy viewAny', function () {
     it('allows all roles to view clients', function () {
+        $this->actingAs($this->owner);
         expect($this->owner->can('viewAny', Client::class))->toBeTrue();
+
+        $this->actingAs($this->admin);
         expect($this->admin->can('viewAny', Client::class))->toBeTrue();
+
+        $this->actingAs($this->manager);
         expect($this->manager->can('viewAny', Client::class))->toBeTrue();
+
+        $this->actingAs($this->accountant);
         expect($this->accountant->can('viewAny', Client::class))->toBeTrue();
+
+        $this->actingAs($this->user);
         expect($this->user->can('viewAny', Client::class))->toBeTrue();
     });
 });
 
 describe('ClientPolicy view', function () {
     it('allows all roles to view clients in their organization', function () {
+        $this->actingAs($this->owner);
         expect($this->owner->can('view', $this->client))->toBeTrue();
+
+        $this->actingAs($this->admin);
         expect($this->admin->can('view', $this->client))->toBeTrue();
+
+        $this->actingAs($this->manager);
         expect($this->manager->can('view', $this->client))->toBeTrue();
+
+        $this->actingAs($this->accountant);
         expect($this->accountant->can('view', $this->client))->toBeTrue();
+
+        $this->actingAs($this->user);
         expect($this->user->can('view', $this->client))->toBeTrue();
     });
 
     it('denies viewing clients from other organizations', function () {
         $otherClient = Client::factory()->for($this->otherOrganization)->create();
 
+        $this->actingAs($this->owner);
         expect($this->owner->can('view', $otherClient))->toBeFalse();
     });
 });
 
 describe('ClientPolicy create', function () {
     it('allows owner, admin, and manager to create clients', function () {
+        $this->actingAs($this->owner);
         expect($this->owner->can('create', Client::class))->toBeTrue();
+
+        $this->actingAs($this->admin);
         expect($this->admin->can('create', Client::class))->toBeTrue();
+
+        $this->actingAs($this->manager);
         expect($this->manager->can('create', Client::class))->toBeTrue();
     });
 
     it('denies accountant and user from creating clients', function () {
+        $this->actingAs($this->accountant);
         expect($this->accountant->can('create', Client::class))->toBeFalse();
+
+        $this->actingAs($this->user);
         expect($this->user->can('create', Client::class))->toBeFalse();
     });
 });
 
 describe('ClientPolicy update', function () {
     it('allows owner, admin, and manager to update clients', function () {
+        $this->actingAs($this->owner);
         expect($this->owner->can('update', $this->client))->toBeTrue();
+
+        $this->actingAs($this->admin);
         expect($this->admin->can('update', $this->client))->toBeTrue();
+
+        $this->actingAs($this->manager);
         expect($this->manager->can('update', $this->client))->toBeTrue();
     });
 
     it('denies accountant and user from updating clients', function () {
+        $this->actingAs($this->accountant);
         expect($this->accountant->can('update', $this->client))->toBeFalse();
+
+        $this->actingAs($this->user);
         expect($this->user->can('update', $this->client))->toBeFalse();
     });
 
     it('denies updating clients from other organizations', function () {
         $otherClient = Client::factory()->for($this->otherOrganization)->create();
 
+        $this->actingAs($this->owner);
         expect($this->owner->can('update', $otherClient))->toBeFalse();
     });
 });
 
 describe('ClientPolicy delete', function () {
     it('allows owner and admin to delete clients', function () {
+        $this->actingAs($this->owner);
         expect($this->owner->can('delete', $this->client))->toBeTrue();
+
+        $this->actingAs($this->admin);
         expect($this->admin->can('delete', $this->client))->toBeTrue();
     });
 
     it('denies manager, accountant, and user from deleting clients', function () {
+        $this->actingAs($this->manager);
         expect($this->manager->can('delete', $this->client))->toBeFalse();
+
+        $this->actingAs($this->accountant);
         expect($this->accountant->can('delete', $this->client))->toBeFalse();
+
+        $this->actingAs($this->user);
         expect($this->user->can('delete', $this->client))->toBeFalse();
     });
 
     it('denies deleting clients from other organizations', function () {
         $otherClient = Client::factory()->for($this->otherOrganization)->create();
 
+        $this->actingAs($this->owner);
         expect($this->owner->can('delete', $otherClient))->toBeFalse();
     });
 });

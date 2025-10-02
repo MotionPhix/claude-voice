@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureOrganizationIsSet;
+use App\Http\Middleware\EnsureUserCanAccessResource;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -25,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'organization' => EnsureOrganizationIsSet::class,
+            'permission' => EnsureUserCanAccessResource::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

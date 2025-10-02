@@ -36,10 +36,7 @@ class Invoice extends Model
 
         static::creating(function ($invoice) {
             if (empty($invoice->invoice_number)) {
-                $prefix = 'INV-'.date('Y').'-';
-                // Use timestamp + random to avoid collisions during rapid test creation
-                $number = $prefix.str_pad(time() % 10000 . rand(0, 999), 4, '0', STR_PAD_LEFT);
-                $invoice->invoice_number = $number;
+                $invoice->invoice_number = self::generateInvoiceNumber();
             }
 
             if (empty($invoice->exchange_rate)) {
@@ -111,16 +108,15 @@ class Invoice extends Model
         $totalPaid = $this->payments->sum('amount');
         $this->amount_paid = $totalPaid;
 
-        // Only update status if the invoice isn't being explicitly managed (sent/paid)
-        if ($totalPaid >= $this->total && $this->status !== 'paid' && ! in_array($this->status, ['sent', 'draft'])) {
+        // Mark as paid if fully paid and total > 0
+        if ($totalPaid >= $this->total && $this->total > 0 && $this->status !== 'paid') {
             $this->update([
                 'status' => 'paid',
                 'paid_at' => now(),
             ]);
         }
-
-        // Check if overdue, but only for sent invoices
-        if ($this->status === 'sent' && $this->due_date?->isPast()) {
+        // Check if overdue, but only for sent invoices that aren't paid
+        elseif ($this->status === 'sent' && $this->due_date?->isPast()) {
             $this->update(['status' => 'overdue']);
         }
     }
@@ -132,12 +128,14 @@ class Invoice extends Model
 
     public function getIsOverdueAttribute(): bool
     {
-        return $this->due_date->isPast() && in_array($this->status, ['sent', 'overdue']);
+        return $this->due_date && $this->due_date->isPast() && in_array($this->status, ['sent', 'overdue']);
     }
 
     public function getFormattedTotalAttribute(): string
     {
-        return $this->currency()->first()->symbol.number_format($this->total, 2);
+        $currency = $this->currency()->first();
+        $symbol = $currency ? $currency->symbol : '$';
+        return $symbol . number_format($this->total, 2);
     }
 
     public static function generateInvoiceNumber(): string
@@ -151,7 +149,7 @@ class Invoice extends Model
             $startPos = strlen($prefix) + 1;
 
             $row = \DB::selectOne(
-                "select max(cast(substr(invoice_number, $startPos) as integer)) as max_num from invoices where invoice_number like ?",
+                "select max(cast(substr(invoice_number, $startPos) as UNSIGNED)) as max_num from invoices where invoice_number like ?",
                 [$prefix.'%']
             );
 
@@ -206,10 +204,8 @@ class Invoice extends Model
             $newItem->save();
         }
 
-        // Generate truly unique invoice number using UUID
-        $prefix = 'INV-'.date('Y').'-';
-        $uuid = substr(str_replace('-', '', \Illuminate\Support\Str::uuid()), 0, 4);
-        $duplicate->invoice_number = $prefix . strtoupper($uuid);
+        // Generate new sequential invoice number
+        $duplicate->invoice_number = $this->generateInvoiceNumber();
         $duplicate->saveQuietly();
 
         return $duplicate;
@@ -225,9 +221,6 @@ class Invoice extends Model
 
     public function scopeOverdue($query)
     {
-        /*return $query->where('due_date', '<', now())
-            ->whereIn('status', ['sent', 'overdue']);*/
-
         return $query->where(function ($q) {
             $q->where('status', 'overdue')
                 ->orWhere(function ($sq) {

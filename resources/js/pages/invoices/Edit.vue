@@ -28,6 +28,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { usePermissions } from '@/composables/usePermissions';
 
 interface Client {
     id: number;
@@ -84,6 +85,9 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// Permission checks
+const { canEditInvoices, canSendInvoices } = usePermissions();
 
 const breadcrumbs = [
     { title: 'Invoices', href: '/invoices' },
@@ -155,7 +159,8 @@ const total = computed(() => {
     return taxableAmount.value + taxAmount.value;
 });
 
-const canEdit = computed(() => props.invoice.status === 'draft');
+const canEdit = computed(() => canEditInvoices && props.invoice.status === 'draft');
+const canSendFromEdit = computed(() => canSendInvoices && props.invoice.status === 'draft');
 
 // Helper functions
 const formatCurrency = (amount: number, currency: string = 'USD'): string => {
@@ -250,7 +255,7 @@ watch(() => form.items, () => {
                         <Save class="h-4 w-4 mr-2" />
                         Save Changes
                     </Button>
-                    <Button @click="saveAndSend" :disabled="form.processing">
+                    <Button @click="saveAndSend" :disabled="form.processing || !canSendFromEdit">
                         <Send class="h-4 w-4 mr-2" />
                         Save & Send
                     </Button>
@@ -536,7 +541,7 @@ watch(() => form.items, () => {
                                 <Save class="h-4 w-4 mr-2" />
                                 Save Changes
                             </Button>
-                            <Button size="sm" class="w-full" @click="saveAndSend" :disabled="form.processing">
+                            <Button size="sm" class="w-full" @click="saveAndSend" :disabled="form.processing || !canSendFromEdit">
                                 <Send class="h-4 w-4 mr-2" />
                                 Save & Send to Client
                             </Button>

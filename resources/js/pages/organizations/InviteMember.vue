@@ -144,7 +144,7 @@
                         </Link>
                         <button
                             type="submit"
-                            :disabled="form.processing"
+                            :disabled="form.processing || !canInviteMembers"
                             class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                         >
                             <span v-if="!form.processing">Send Invitation</span>
@@ -160,11 +160,15 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { usePermissions } from '@/composables/usePermissions';
 
 const props = defineProps({
     organization: Object,
     roles: Array,
 });
+
+// Permission check
+const { canInviteMembers } = usePermissions();
 
 const form = useForm({
     email: '',

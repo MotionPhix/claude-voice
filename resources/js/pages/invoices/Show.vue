@@ -71,6 +71,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { usePermissions } from '@/composables/usePermissions';
 
 interface InvoiceItem {
     id: number;
@@ -136,6 +137,9 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// Permissions
+const { canEditInvoices, canDeleteInvoices, canSendInvoices, canMarkInvoicesPaid } = usePermissions();
 
 // Reactive state
 const showPaymentDialog = ref(false);
@@ -203,12 +207,24 @@ const isEditable = computed(() =>
     props.invoice.status === 'draft' && props.can_edit
 );
 
-const canSend = computed(() => 
-    props.invoice.status === 'draft'
+const canSend = computed(() =>
+    canSendInvoices && props.invoice.status === 'draft'
 );
 
-const canRecordPayment = computed(() => 
-    ['sent', 'overdue'].includes(props.invoice.status) && props.invoice.remaining_balance > 0
+const canEdit = computed(() =>
+    canEditInvoices && props.invoice.status === 'draft'
+);
+
+const canDelete = computed(() =>
+    canDeleteInvoices && ['draft', 'sent'].includes(props.invoice.status)
+);
+
+const canMarkPaid = computed(() =>
+    canMarkInvoicesPaid && ['sent', 'overdue'].includes(props.invoice.status) && props.invoice.amount_paid < props.invoice.total
+);
+
+const canRecordPayment = computed(() =>
+    canMarkInvoicesPaid && ['sent', 'overdue'].includes(props.invoice.status) && props.invoice.remaining_balance > 0
 );
 
 const progressPercentage = computed(() => {
@@ -310,7 +326,7 @@ const shareInvoice = () => {
                 <!-- Header -->
                 <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
                     <div class="flex items-center gap-4">
-                        <Link href="/invoices">
+                        <Link :href="route('invoices.index')">
                             <Button variant="outline" size="icon">
                                 <ArrowLeft class="h-4 w-4" />
                             </Button>
@@ -359,7 +375,7 @@ const shareInvoice = () => {
                             </TooltipContent>
                         </Tooltip>
 
-                        <Tooltip v-if="isEditable">
+                        <Tooltip v-if="canEdit">
                             <TooltipTrigger as-child>
                                 <Button variant="outline" as-child>
                                     <Link :href="`/invoices/${invoice.id}/edit`">
@@ -398,8 +414,8 @@ const shareInvoice = () => {
                                     Duplicate
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem 
-                                    v-if="can_delete"
+                                <DropdownMenuItem
+                                    v-if="canDelete"
                                     @click="showDeleteDialog = true"
                                     class="text-red-600 dark:text-red-400"
                                 >

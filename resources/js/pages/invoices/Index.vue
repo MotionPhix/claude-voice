@@ -69,6 +69,8 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import RoleBadge from '@/components/ui/role-badge.vue';
+import { usePermissions } from '@/composables/usePermissions';
 
 interface Invoice {
     id: number;
@@ -125,6 +127,19 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// Permissions
+const {
+    userRole,
+    userRoleLabel,
+    canCreateInvoices,
+    canEditInvoices,
+    canDeleteInvoices,
+    canSendInvoices,
+    canBulkDeleteInvoices,
+    canBulkSendInvoices,
+    canBulkExport
+} = usePermissions();
 
 // Reactive state
 const selectedInvoices = ref<number[]>([]);
@@ -354,9 +369,12 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                 <!-- Header -->
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                     <div>
-                        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-                            Invoices
-                        </h1>
+                        <div class="flex items-center gap-3 mb-2">
+                            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+                                Invoices
+                            </h1>
+                            <RoleBadge v-if="userRole" :role="userRole" />
+                        </div>
                         <p class="mt-2 text-gray-600 dark:text-gray-400">
                             Manage and track all your invoices in one place
                         </p>
@@ -369,12 +387,26 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                 {{ Object.values(props.filters || {}).filter(Boolean).length }}
                             </Badge>
                         </Button>
-                        <Link href="/invoices/create">
+                        <Link
+                            v-if="canCreateInvoices"
+                            :href="route('invoices.create')"
+                        >
                             <Button>
                                 <Plus class="h-4 w-4 mr-2" />
                                 Create Invoice
                             </Button>
                         </Link>
+                        <Tooltip v-else>
+                            <TooltipTrigger as-child>
+                                <Button disabled>
+                                    <Plus class="h-4 w-4 mr-2" />
+                                    Create Invoice
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>You need at least Accountant permissions to create invoices</p>
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
                 </div>
 
@@ -578,16 +610,23 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem @click="performBulkAction('send')">
+                                        <DropdownMenuItem
+                                            v-if="canBulkSendInvoices"
+                                            @click="performBulkAction('send')"
+                                        >
                                             <Send class="mr-2 h-4 w-4" />
                                             Send Selected
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem @click="performBulkAction('export')">
+                                        <DropdownMenuItem
+                                            v-if="canBulkExport"
+                                            @click="performBulkAction('export')"
+                                        >
                                             <Download class="mr-2 h-4 w-4" />
                                             Export Selected
                                         </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem 
+                                        <DropdownMenuSeparator v-if="canBulkDeleteInvoices" />
+                                        <DropdownMenuItem
+                                            v-if="canBulkDeleteInvoices"
                                             @click="performBulkAction('delete')"
                                             class="text-red-600 dark:text-red-400"
                                         >
@@ -792,7 +831,7 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                                     </DropdownMenuItem>
                                                     
                                                     <DropdownMenuItem
-                                                        v-if="invoice.status === 'draft'"
+                                                        v-if="invoice.status === 'draft' && canEditInvoices"
                                                         as-child
                                                     >
                                                         <Link :href="`/invoices/${invoice.id}/edit`">
@@ -802,7 +841,7 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                                     </DropdownMenuItem>
 
                                                     <DropdownMenuItem
-                                                        v-if="invoice.status === 'draft'"
+                                                        v-if="invoice.status === 'draft' && canSendInvoices"
                                                         @click="sendInvoice(invoice)"
                                                     >
                                                         <Send class="mr-2 h-4 w-4" />
@@ -819,9 +858,10 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                                         Duplicate
                                                     </DropdownMenuItem>
 
-                                                    <DropdownMenuSeparator />
-                                                    
+                                                    <DropdownMenuSeparator v-if="canDeleteInvoices" />
+
                                                     <DropdownMenuItem
+                                                        v-if="canDeleteInvoices"
                                                         @click="deleteInvoice(invoice)"
                                                         class="text-red-600 dark:text-red-400"
                                                     >
@@ -915,15 +955,18 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                 {{ hasActiveFilters ? 'Try adjusting your filters' : 'Get started by creating your first invoice' }}
                             </p>
                             <div class="mt-6">
-                                <Link v-if="!hasActiveFilters" href="/invoices/create">
+                                <Link v-if="!hasActiveFilters && canCreateInvoices" :href="route('invoices.create')">
                                     <Button>
                                         <Plus class="mr-2 h-4 w-4" />
                                         Create Invoice
                                     </Button>
                                 </Link>
-                                <Button v-else variant="outline" @click="clearFilters">
+                                <Button v-else-if="hasActiveFilters" variant="outline" @click="clearFilters">
                                     Clear Filters
                                 </Button>
+                                <p v-else-if="!canCreateInvoices" class="text-sm text-gray-500">
+                                    You need at least Accountant permissions to create invoices
+                                </p>
                             </div>
                         </div>
                     </CardContent>

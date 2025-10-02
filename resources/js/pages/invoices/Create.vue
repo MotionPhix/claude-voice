@@ -27,6 +27,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { usePermissions } from '@/composables/usePermissions';
 
 interface Client {
     id: number;
@@ -63,6 +64,9 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// Permission checks
+const { canCreateInvoices, canSendInvoices } = usePermissions();
 
 const breadcrumbs = [
     { title: 'Invoices', href: '/invoices' },
@@ -136,8 +140,12 @@ const total = computed(() => {
 });
 
 const canSaveInvoice = computed(() => {
-    return hasClients.value && form.client_id && form.items.length > 0 && 
+    return canCreateInvoices && hasClients.value && form.client_id && form.items.length > 0 &&
            form.items.some(item => item.description && item.quantity > 0 && item.unit_price >= 0);
+});
+
+const canSaveAndSend = computed(() => {
+    return canSaveInvoice.value && canSendInvoices;
 });
 
 // Set default due date (30 days from issue date)
@@ -232,7 +240,7 @@ watch(() => form.items, () => {
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-4">
-                    <Link href="/invoices">
+                    <Link :href="route('invoices.index')">
                         <Button variant="outline" size="icon">
                             <ArrowLeft class="h-4 w-4" />
                         </Button>
@@ -248,7 +256,7 @@ watch(() => form.items, () => {
                         <Save class="h-4 w-4 mr-2" />
                         Save Draft
                     </Button>
-                    <Button @click="saveAndSend" :disabled="form.processing || !canSaveInvoice">
+                    <Button @click="saveAndSend" :disabled="form.processing || !canSaveAndSend">
                         <Send class="h-4 w-4 mr-2" />
                         Save & Send
                     </Button>
@@ -668,7 +676,7 @@ watch(() => form.items, () => {
                                 <Save class="h-4 w-4 mr-2" />
                                 Save as Draft
                             </Button>
-                            <Button size="sm" class="w-full" @click="saveAndSend" :disabled="form.processing || !canSaveInvoice">
+                            <Button size="sm" class="w-full" @click="saveAndSend" :disabled="form.processing || !canSaveAndSend">
                                 <Send class="h-4 w-4 mr-2" />
                                 Save & Send to Client
                             </Button>

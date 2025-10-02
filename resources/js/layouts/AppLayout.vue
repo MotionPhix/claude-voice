@@ -28,6 +28,8 @@ import {
 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { route } from 'ziggy-js';
+import { usePermissions } from '@/composables/usePermissions';
+import RoleBadge from '@/components/ui/role-badge.vue';
 
 interface User {
   id: number;
@@ -58,50 +60,70 @@ const notificationCount = ref(3);
 
 const user = computed(() => page.props.auth?.user as User);
 
+// Permissions
+const {
+  userRole,
+  canCreateInvoices,
+  canViewClients,
+  canViewPayments,
+  canViewReports,
+  canManageSettings
+} = usePermissions();
+
 // Navigation menu structure
-const navigation = [
-  {
-    name: 'Dashboard',
-    href: route('dashboard'),
-    icon: Home,
-    current: page.url === '/dashboard',
-  },
-  {
-    name: 'Invoices',
-    icon: FileText,
-    current: page.url.startsWith('/invoices'),
-    children: [
-      { name: 'All Invoices', href: route('invoices.index') },
-      { name: 'Create Invoice', href: route('invoices.create') },
-      { name: 'Draft Invoices', href: route('invoices.index', { status: 'draft' }) },
-      { name: 'Overdue Invoices', href: route('invoices.index', { status: 'overdue' }) },
-    ],
-  },
-  {
-    name: 'Clients',
-    href: route('clients.index'),
-    icon: Users,
-    current: page.url.startsWith('/clients'),
-  },
-  {
-    name: 'Payments',
-    href: '/payments',
-    icon: Wallet,
-    current: page.url.startsWith('/payments'),
-  },
-  {
-    name: 'Recurring',
-    href: route('recurring-invoices.index'),
-    icon: Repeat,
-    current: page.url.startsWith('/recurring-invoices'),
-  },
-  {
-    name: 'Reports',
-    href: route('reports.index'),
-    icon: BarChart3,
-    current: page.url.startsWith('/reports'),
-  },
-];
+const navigation = computed(() => {
+  const allItems = [
+    {
+      name: 'Dashboard',
+      href: route('dashboard'),
+      icon: Home,
+      current: page.url === '/dashboard',
+      visible: true, // Dashboard is always visible
+    },
+    {
+      name: 'Invoices',
+      icon: FileText,
+      current: page.url.startsWith('/invoices'),
+      visible: true, // Invoice viewing is generally available
+      children: [
+        { name: 'All Invoices', href: route('invoices.index'), visible: true },
+        { name: 'Create Invoice', href: route('invoices.create'), visible: canCreateInvoices },
+        { name: 'Draft Invoices', href: route('invoices.index', { status: 'draft' }), visible: true },
+        { name: 'Overdue Invoices', href: route('invoices.index', { status: 'overdue' }), visible: true },
+      ].filter(child => child.visible),
+    },
+    {
+      name: 'Clients',
+      href: route('clients.index'),
+      icon: Users,
+      current: page.url.startsWith('/clients'),
+      visible: canViewClients,
+    },
+    {
+      name: 'Payments',
+      href: route('reports.payments'),
+      icon: Wallet,
+      current: page.url.startsWith('/reports/payments'),
+      visible: canViewPayments,
+    },
+    {
+      name: 'Recurring',
+      href: route('recurring-invoices.index'),
+      icon: Repeat,
+      current: page.url.startsWith('/recurring-invoices'),
+      visible: canCreateInvoices, // Same permission as creating invoices
+    },
+    {
+      name: 'Reports',
+      href: route('reports.index'),
+      icon: BarChart3,
+      current: page.url.startsWith('/reports'),
+      visible: canViewReports,
+    },
+  ];
+
+  return allItems.filter(item => item.visible);
+});
 
 const secondaryNavigation = [
   {
@@ -112,7 +134,7 @@ const secondaryNavigation = [
   },
   {
     name: 'Help & Support',
-    href: '/help',
+    href: '#', // TODO: Create help page or external link
     icon: HelpCircle,
     current: page.url.startsWith('/help'),
   },
@@ -133,7 +155,8 @@ const logout = () => {
 
 const performSearch = () => {
   if (searchQuery.value.trim()) {
-    router.get('/search', { q: searchQuery.value.trim() });
+    // TODO: Implement search functionality with proper route
+    console.log('Search functionality not yet implemented:', searchQuery.value.trim());
   }
 };
 

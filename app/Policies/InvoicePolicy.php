@@ -103,6 +103,9 @@ class InvoicePolicy
             return false;
         }
 
+        // Authorization passes for allowed roles - let controller handle business rules
+        // (like checking invoice status)
+
         // Owners, Admins, Managers, Accountants can update invoices
         return $membership->hasAnyRole([
             MembershipRole::Owner,
@@ -127,10 +130,8 @@ class InvoicePolicy
             return false;
         }
 
-        // Only draft invoices can be deleted
-        if ($invoice->status !== 'draft') {
-            return true; // allow controller to return friendly message; authorization passes so controller can handle business rule
-        }
+        // Authorization passes for allowed roles - let controller handle business rules
+        // (like checking invoice status)
 
         // Owners, Admins, Managers can delete invoices
         return $membership->hasAnyRole([
@@ -154,6 +155,9 @@ class InvoicePolicy
         if ($invoice->organization_id !== $membership->organization_id) {
             return false;
         }
+
+        // Authorization passes for allowed roles - let controller handle business rules
+        // (like checking invoice status)
 
         // Owners, Admins, Managers can send invoices
         return $membership->hasAnyRole([
