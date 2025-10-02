@@ -217,6 +217,7 @@ class InvoiceController extends Controller
     {
         $this->authorize('delete', $invoice);
 
+        // Check business rules after authorization
         if ($invoice->status === 'paid') {
             return redirect()->route('invoices.index')
                 ->with('error', 'Paid invoices cannot be deleted.');
@@ -232,6 +233,7 @@ class InvoiceController extends Controller
     {
         $this->authorize('send', $invoice);
 
+        // Check business rules after authorization
         if ($invoice->status !== 'draft') {
             return redirect()->route('invoices.show', $invoice)
                 ->with('error', 'Only draft invoices can be sent.');
@@ -248,37 +250,24 @@ class InvoiceController extends Controller
         }
     }
 
+    public function duplicate(Invoice $invoice)
+    {
+        $this->authorize('duplicate', $invoice);
+
+        $duplicate = $invoice->duplicate();
+
+        return redirect()->route('invoices.edit', $duplicate)
+            ->with('success', 'Invoice duplicated successfully as '.$duplicate->invoice_number.'.');
+    }
+
     public function pdf(Invoice $invoice)
     {
         $this->authorize('downloadPdf', $invoice);
 
         $pdf = $this->invoiceService->generatePdf($invoice);
 
-        return $pdf->download("invoice-{$invoice->invoice_number}.pdf");
-    }
-
-    public function duplicate(Invoice $invoice)
-    {
-        $this->authorize('duplicate', $invoice);
-
-        $newInvoice = $invoice->replicate([
-            'invoice_number', 'status', 'sent_at', 'paid_at', 'amount_paid',
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
         ]);
-
-        $newInvoice->status = 'draft';
-        $newInvoice->issue_date = now()->toDateString();
-        $newInvoice->due_date = now()->addDays(30)->toDateString();
-        $newInvoice->save();
-
-        foreach ($invoice->items as $item) {
-            $newItem = $item->replicate(['invoice_id']);
-            $newItem->invoice_id = $newInvoice->id;
-            $newItem->save();
-        }
-
-        $newInvoice->calculateTotals();
-
-        return redirect()->route('invoices.edit', $newInvoice)
-            ->with('success', 'Invoice duplicated successfully as '.$newInvoice->invoice_number.'.');
     }
 }

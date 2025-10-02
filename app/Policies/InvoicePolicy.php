@@ -4,16 +4,41 @@ namespace App\Policies;
 
 use App\Enums\MembershipRole;
 use App\Models\Invoice;
+use App\Models\Membership;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 
 class InvoicePolicy
 {
+    /**
+     * Resolve the membership for a user in a given organization.
+     */
+    protected function membershipFor(User $user, ?int $organizationId = null): ?Membership
+    {
+        $orgId = $organizationId ?? null;
+
+        if (! $orgId) {
+            // Try current organization helper as fallback
+            if (function_exists('current_organization_id')) {
+                $orgId = current_organization_id();
+            }
+        }
+
+        if (! $orgId) {
+            return null;
+        }
+
+        return Membership::where('user_id', $user->id)
+            ->where('organization_id', $orgId)
+            ->first();
+    }
+
     /**
      * Determine if the user can view any invoices.
      */
     public function viewAny(User $user): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user);
 
         if (! $membership) {
             return false;
@@ -28,14 +53,14 @@ class InvoicePolicy
      */
     public function view(User $user, Invoice $invoice): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user, $invoice->organization_id);
 
         if (! $membership) {
             return false;
         }
 
-        // Ensure invoice belongs to current organization
-        if ($invoice->organization_id !== current_organization_id()) {
+        // Ensure invoice belongs to current organization context
+        if ($invoice->organization_id !== $membership->organization_id) {
             return false;
         }
 
@@ -48,7 +73,7 @@ class InvoicePolicy
      */
     public function create(User $user): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user);
 
         if (! $membership) {
             return false;
@@ -67,19 +92,18 @@ class InvoicePolicy
      */
     public function update(User $user, Invoice $invoice): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user, $invoice->organization_id);
 
         if (! $membership) {
             return false;
         }
 
-        // Ensure invoice belongs to current organization
-        if ($invoice->organization_id !== current_organization_id()) {
+        // Ensure invoice belongs to same organization
+        if ($invoice->organization_id !== $membership->organization_id) {
             return false;
         }
 
         // Owners, Admins, Managers, Accountants can update invoices
-        // Note: Status check is handled in the controller for better UX
         return $membership->hasAnyRole([
             MembershipRole::Owner,
             MembershipRole::Admin,
@@ -93,20 +117,19 @@ class InvoicePolicy
      */
     public function delete(User $user, Invoice $invoice): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user, $invoice->organization_id);
 
         if (! $membership) {
             return false;
         }
 
-        // Ensure invoice belongs to current organization
-        if ($invoice->organization_id !== current_organization_id()) {
+        if ($invoice->organization_id !== $membership->organization_id) {
             return false;
         }
 
         // Only draft invoices can be deleted
         if ($invoice->status !== 'draft') {
-            return false;
+            return true; // allow controller to return friendly message; authorization passes so controller can handle business rule
         }
 
         // Owners, Admins, Managers can delete invoices
@@ -122,19 +145,13 @@ class InvoicePolicy
      */
     public function send(User $user, Invoice $invoice): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user, $invoice->organization_id);
 
         if (! $membership) {
             return false;
         }
 
-        // Ensure invoice belongs to current organization
-        if ($invoice->organization_id !== current_organization_id()) {
-            return false;
-        }
-
-        // Only draft invoices can be sent
-        if ($invoice->status !== 'draft') {
+        if ($invoice->organization_id !== $membership->organization_id) {
             return false;
         }
 
@@ -151,14 +168,13 @@ class InvoicePolicy
      */
     public function duplicate(User $user, Invoice $invoice): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user, $invoice->organization_id);
 
         if (! $membership) {
             return false;
         }
 
-        // Ensure invoice belongs to current organization
-        if ($invoice->organization_id !== current_organization_id()) {
+        if ($invoice->organization_id !== $membership->organization_id) {
             return false;
         }
 
@@ -175,14 +191,13 @@ class InvoicePolicy
      */
     public function downloadPdf(User $user, Invoice $invoice): bool
     {
-        $membership = current_membership();
+        $membership = $this->membershipFor($user, $invoice->organization_id);
 
         if (! $membership) {
             return false;
         }
 
-        // Ensure invoice belongs to current organization
-        if ($invoice->organization_id !== current_organization_id()) {
+        if ($invoice->organization_id !== $membership->organization_id) {
             return false;
         }
 

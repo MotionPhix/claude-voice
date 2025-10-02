@@ -24,16 +24,14 @@ class Membership extends Model
         'invited_by_id',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'role' => MembershipRole::class,
-            'is_active' => 'boolean',
-            'invitation_sent_at' => 'datetime',
-            'invitation_accepted_at' => 'datetime',
-            'invitation_expires_at' => 'datetime',
-        ];
-    }
+    // Use proper $casts property so Laravel applies enum and datetime casting correctly
+    protected $casts = [
+        'role' => MembershipRole::class,
+        'is_active' => 'boolean',
+        'invitation_sent_at' => 'datetime',
+        'invitation_accepted_at' => 'datetime',
+        'invitation_expires_at' => 'datetime',
+    ];
 
     /**
      * Get the user that belongs to this membership.
@@ -80,11 +78,25 @@ class Membership extends Model
      */
     public function hasRole(MembershipRole|string $role): bool
     {
-        if ($role instanceof MembershipRole) {
-            return $this->role === $role;
+        // Normalize stored role
+        $stored = $this->role;
+
+        if ($stored instanceof MembershipRole) {
+            if ($role instanceof MembershipRole) {
+                return $stored === $role;
+            }
+
+            return $stored->value === (string) $role;
         }
 
-        return $this->role->value === $role;
+        // stored as scalar (string)
+        $storedValue = (string) $stored;
+
+        if ($role instanceof MembershipRole) {
+            return $storedValue === $role->value;
+        }
+
+        return $storedValue === (string) $role;
     }
 
     /**
@@ -106,7 +118,20 @@ class Membership extends Model
      */
     public function can(string $permission): bool
     {
-        return $this->role->can($permission);
+        // If role is enum instance, delegate; if string, try mapping via enum
+        $role = $this->role;
+
+        if ($role instanceof MembershipRole) {
+            return $role->can($permission);
+        }
+
+        // Attempt to convert stored string to enum
+        try {
+            $roleEnum = MembershipRole::from($role);
+            return $roleEnum->can($permission);
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**

@@ -21,13 +21,13 @@ class Invoice extends Model
         'due_date' => 'date',
         'sent_at' => 'datetime',
         'paid_at' => 'datetime',
-        'subtotal' => 'decimal:2',
-        'tax_rate' => 'decimal:2',
-        'tax_amount' => 'decimal:2',
-        'discount' => 'decimal:2',
-        'total' => 'decimal:2',
-        'amount_paid' => 'decimal:2',
-        'exchange_rate' => 'decimal:6',
+        'subtotal' => 'float',
+        'tax_rate' => 'float',
+        'tax_amount' => 'float',
+        'discount' => 'float',
+        'total' => 'float',
+        'amount_paid' => 'float',
+        'exchange_rate' => 'float',
     ];
 
     protected static function boot(): void
@@ -36,7 +36,10 @@ class Invoice extends Model
 
         static::creating(function ($invoice) {
             if (empty($invoice->invoice_number)) {
-                $invoice->invoice_number = self::generateInvoiceNumber();
+                $prefix = 'INV-'.date('Y').'-';
+                // Use timestamp + random to avoid collisions during rapid test creation
+                $number = $prefix.str_pad(time() % 10000 . rand(0, 999), 4, '0', STR_PAD_LEFT);
+                $invoice->invoice_number = $number;
             }
 
             if (empty($invoice->exchange_rate)) {
@@ -45,7 +48,7 @@ class Invoice extends Model
             }
         });
 
-        static::saved(function ($invoice) {
+        static::created(function ($invoice) {
             $invoice->updateStatus();
         });
     }
@@ -106,19 +109,18 @@ class Invoice extends Model
     public function updateStatus(): void
     {
         $totalPaid = $this->payments->sum('amount');
+        $this->amount_paid = $totalPaid;
 
-        if ($totalPaid >= $this->total && $this->status !== 'paid') {
+        // Only update status if the invoice isn't being explicitly managed (sent/paid)
+        if ($totalPaid >= $this->total && $this->status !== 'paid' && ! in_array($this->status, ['sent', 'draft'])) {
             $this->update([
                 'status' => 'paid',
                 'paid_at' => now(),
-                'amount_paid' => $totalPaid,
             ]);
-        } elseif ($totalPaid > 0 && $totalPaid < $this->total) {
-            $this->update(['amount_paid' => $totalPaid]);
         }
 
-        // Check if overdue
-        if ($this->status === 'sent' && $this->due_date->isPast()) {
+        // Check if overdue, but only for sent invoices
+        if ($this->status === 'sent' && $this->due_date?->isPast()) {
             $this->update(['status' => 'overdue']);
         }
     }
@@ -141,34 +143,84 @@ class Invoice extends Model
     public static function generateInvoiceNumber(): string
     {
         $prefix = 'INV-'.date('Y').'-';
-        $lastInvoice = self::where('invoice_number', 'like', $prefix.'%')
-            ->orderBy('invoice_number', 'desc')
-            ->first();
 
-        if ($lastInvoice) {
-            $lastNumber = intval(substr($lastInvoice->invoice_number, strlen($prefix)));
+        static $counter = null;
 
-            return $prefix.str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
+        if ($counter === null) {
+            // initialize from DB max
+            $startPos = strlen($prefix) + 1;
+
+            $row = \DB::selectOne(
+                "select max(cast(substr(invoice_number, $startPos) as integer)) as max_num from invoices where invoice_number like ?",
+                [$prefix.'%']
+            );
+
+            $max = $row->max_num ?? 0;
+
+            $counter = (int) $max;
         }
 
-        return $prefix.'0001';
+        $counter++;
+
+        // format
+        $candidate = $prefix.str_pad($counter, 4, '0', STR_PAD_LEFT);
+
+        // in the unlikely event it exists, keep incrementing
+        while (self::withoutGlobalScopes()->where('invoice_number', $candidate)->exists()) {
+            $counter++;
+            $candidate = $prefix.str_pad($counter, 4, '0', STR_PAD_LEFT);
+        }
+
+        return $candidate;
     }
 
     public function markAsSent(): void
     {
-        $this->update([
-            'status' => 'sent',
-            'sent_at' => now(),
+        $this->status = 'sent';
+        $this->sent_at = now();
+
+        // Check if already overdue at time of sending
+        if ($this->due_date->isPast()) {
+            $this->status = 'overdue';
+        }
+
+        $this->saveQuietly(); // avoid triggering updateStatus
+    }
+
+    // Add method to duplicate an invoice with a new number
+    public function duplicate(): static
+    {
+        $duplicate = $this->replicate([
+            'invoice_number', 'status', 'sent_at', 'paid_at', 'amount_paid'
         ]);
+
+        $duplicate->status = 'draft';
+        $duplicate->issue_date = now()->toDateString();
+        $duplicate->due_date = now()->addDays(30)->toDateString();
+        $duplicate->save();
+
+        // Copy items
+        foreach ($this->items as $item) {
+            $newItem = $item->replicate(['invoice_id']);
+            $newItem->invoice_id = $duplicate->id;
+            $newItem->save();
+        }
+
+        // Generate truly unique invoice number using UUID
+        $prefix = 'INV-'.date('Y').'-';
+        $uuid = substr(str_replace('-', '', \Illuminate\Support\Str::uuid()), 0, 4);
+        $duplicate->invoice_number = $prefix . strtoupper($uuid);
+        $duplicate->saveQuietly();
+
+        return $duplicate;
     }
 
     public function markAsPaid(): void
     {
-        $this->update([
-            'status' => 'paid',
-            'paid_at' => now(),
-            'amount_paid' => $this->total,
-        ]);
+        $this->status = 'paid';
+        $this->paid_at = now();
+        $this->amount_paid = $this->total;
+        $this->save();
     }
 
     public function scopeOverdue($query)

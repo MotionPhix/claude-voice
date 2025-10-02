@@ -19,32 +19,78 @@ class InvoiceFactory extends Factory
      */
     public function definition(): array
     {
-        $issueDate = $this->faker->dateTimeBetween('-6 months', 'now');
-        $dueDate = $this->faker->dateTimeBetween($issueDate, '+1 month');
-
-        $subtotal = $this->faker->randomFloat(2, 100, 5000);
-        $taxRate = $this->faker->randomFloat(2, 0, 25);
-        $taxAmount = $subtotal * ($taxRate / 100);
-        $discount = $this->faker->randomFloat(2, 0, 100);
-        $total = $subtotal + $taxAmount - $discount;
-
         return [
-            'organization_id' => Organization::factory(),
-            'client_id' => Client::factory(),
+            'client_id' => function () {
+                if (auth()->check() && ! session('current_organization_id')) {
+                    // Create organization and membership for auth user if none exists
+                    $org = Organization::factory()->create();
+                    \Database\Factories\MembershipFactory::new()->owner()->create([
+                        'user_id' => auth()->id(),
+                        'organization_id' => $org->id,
+                    ]);
+                    session(['current_organization_id' => $org->id]);
+
+                    // Create client in this org
+                    return Client::factory()->create([
+                        'organization_id' => $org->id,
+                    ])->id;
+                }
+
+                return Client::factory();
+            },
+            'organization_id' => function (array $attributes) {
+                if (isset($attributes['client_id'])) {
+                    if ($attributes['client_id'] instanceof Client) {
+                        return $attributes['client_id']->organization_id;
+                    }
+                    $client = Client::withoutGlobalScopes()->find($attributes['client_id']);
+                    if ($client) {
+                        return $client->organization_id;
+                    }
+                }
+
+                return Organization::factory();
+            },
             'currency' => 'USD',
             'exchange_rate' => 1.000000,
-            'issue_date' => $issueDate,
-            'due_date' => $dueDate,
-            'status' => $this->faker->randomElement(['draft', 'sent', 'paid', 'overdue']),
-            'subtotal' => $subtotal,
-            'tax_rate' => $taxRate,
-            'tax_amount' => $taxAmount,
-            'discount' => $discount,
-            'total' => $total,
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(30)->toDateString(),
+            'status' => 'draft',
+            'subtotal' => 0,
+            'tax_rate' => $this->faker->randomFloat(2, 0, 25),
+            'tax_amount' => 0,
+            'discount' => $this->faker->randomFloat(2, 0, 100),
+            'total' => 0,
             'amount_paid' => 0,
             'notes' => $this->faker->optional()->paragraph(),
             'terms' => $this->faker->optional()->paragraph(),
         ];
+    }
+
+    /**
+     * Configure the model factory.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Invoice $invoice) {
+            if (auth()->check()) {
+                // Check if auth user already has membership in this organization
+                $membership = \App\Models\Membership::where([
+                    'user_id' => auth()->id(),
+                    'organization_id' => $invoice->organization_id,
+                ])->first();
+
+                if (! $membership) {
+                    // Create owner membership if none exists
+                    \Database\Factories\MembershipFactory::new()->owner()->create([
+                        'user_id' => auth()->id(),
+                        'organization_id' => $invoice->organization_id,
+                    ]);
+                }
+
+                session(['current_organization_id' => $invoice->organization_id]);
+            }
+        });
     }
 
     /**

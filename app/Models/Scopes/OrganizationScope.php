@@ -26,12 +26,25 @@ class OrganizationScope implements Scope
     {
         // Try to get from helper function first
         if (function_exists('current_organization_id')) {
-            return current_organization_id();
+            $value = current_organization_id();
+
+            if (is_int($value) || (is_string($value) && ctype_digit($value))) {
+                return (int) $value;
+            }
+
+            // if null or non-scalar, don't apply the scope
+            return null;
         }
 
         // Fall back to session
         if (session()->has('current_organization_id')) {
-            return session('current_organization_id');
+            $val = session('current_organization_id');
+
+            if (is_int($val) || (is_string($val) && ctype_digit($val))) {
+                return (int) $val;
+            }
+
+            return null;
         }
 
         return null;

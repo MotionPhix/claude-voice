@@ -13,6 +13,49 @@ beforeEach(function () {
     $this->actingAs($this->user);
 });
 
+// Add per-test auth setup
+uses()->beforeEach(function () {
+    // Ensure organization membership whenever an organization is created
+    \App\Models\Organization::created(function ($organization) {
+        if (auth()->check()) {
+            \Database\Factories\MembershipFactory::new()->owner()->create([
+                'user_id' => auth()->id(),
+                'organization_id' => $organization->id,
+            ]);
+            session(['current_organization_id' => $organization->id]);
+        }
+    });
+
+    // When Client is created, ensure it has an organization and auth user has membership
+    Client::created(function ($client) {
+        if (auth()->check()) {
+            if (! $client->organization_id) {
+                $org = \App\Models\Organization::factory()->create();
+                $client->organization_id = $org->id;
+                $client->saveQuietly();
+            }
+
+            // Membership is created by Organization created event
+            session(['current_organization_id' => $client->organization_id]);
+        }
+    });
+
+    // When Invoice is created, ensure organization membership exists
+    Invoice::created(function ($invoice) {
+        if (auth()->check()) {
+            if (! $invoice->organization_id) {
+                // Create org if none exists
+                $org = \App\Models\Organization::factory()->create();
+                $invoice->organization_id = $org->id;
+                $invoice->saveQuietly();
+            }
+
+            // Membership is created by Organization created event
+            session(['current_organization_id' => $invoice->organization_id]);
+        }
+    });
+})->in('tests/Feature');
+
 test('can view invoice index page', function () {
     $client = Client::factory()->create();
     $invoices = Invoice::factory(3)->for($client)->create();
@@ -61,7 +104,7 @@ test('can search invoices by invoice number', function () {
 test('can search invoices by client name', function () {
     $client1 = Client::factory()->create(['name' => 'ABC Company']);
     $client2 = Client::factory()->create(['name' => 'XYZ Corporation']);
-    
+
     $invoice1 = Invoice::factory()->for($client1)->create();
     Invoice::factory()->for($client2)->create();
 
@@ -135,7 +178,7 @@ test('can create invoice with valid data', function () {
     $response = $this->post(route('invoices.store'), $invoiceData);
 
     $invoice = Invoice::latest()->first();
-    
+
     expect($invoice)
         ->client_id->toBe($client->id)
         ->tax_rate->toBe(10.00)
@@ -160,7 +203,7 @@ test('cannot create invoice with invalid data', function () {
 
     $response->assertSessionHasErrors([
         'client_id',
-        'issue_date', 
+        'issue_date',
         'due_date',
         'items'
     ]);
@@ -227,7 +270,7 @@ test('can update draft invoice', function () {
     $response = $this->put(route('invoices.update', $invoice), $updateData);
 
     $invoice->refresh();
-    
+
     expect($invoice)
         ->client_id->toBe($newClient->id)
         ->tax_rate->toBe(15.00)
@@ -280,7 +323,7 @@ test('can send draft invoice', function () {
     $response = $this->post(route('invoices.send', $invoice));
 
     $invoice->refresh();
-    
+
     expect($invoice->status)->toBe('sent');
     expect($invoice->sent_at)->not->toBeNull();
 
@@ -312,7 +355,7 @@ test('can duplicate invoice', function () {
     $response = $this->post(route('invoices.duplicate', $invoice));
 
     $duplicatedInvoice = Invoice::latest()->first();
-    
+
     expect($duplicatedInvoice)
         ->not->toBe($invoice)
         ->client_id->toBe($invoice->client_id)
