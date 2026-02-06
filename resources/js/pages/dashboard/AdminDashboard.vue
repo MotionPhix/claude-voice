@@ -25,7 +25,7 @@ import {
 
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Card from '@/components/custom/Card.vue';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import RoleBadge from '@/components/ui/role-badge.vue';
@@ -105,7 +105,7 @@ const getStatusBadgeVariant = (status: string) => {
         </div>
         <div class="flex items-center gap-3">
           <RoleBadge :role="isOwner ? 'owner' : 'admin'" />
-          <Link v-if="canManageOrganization" :href="route('organizations.settings', $page.props.auth.currentOrganization.id)">
+          <Link v-if="canManageOrganization" :href="route('organizations.settings', $page.props.auth.currentOrganization.uuid)">
             <Button variant="outline">
               <Settings class="h-4 w-4 mr-2" />
               Organization Settings
@@ -116,71 +116,63 @@ const getStatusBadgeVariant = (status: string) => {
 
       <!-- Key Performance Metrics -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle class="text-sm font-medium">Total Revenue</CardTitle>
+        <Card padding="md">
+          <div class="flex flex-row items-center justify-between space-y-0 pb-2">
+            <h3 class="text-sm font-medium">Total Revenue</h3>
             <DollarSign class="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div class="text-2xl font-bold">{{ formatCurrency(stats.total_revenue) }}</div>
-            <p class="text-xs text-muted-foreground flex items-center">
-              <TrendingUp v-if="stats.revenue_growth > 0" class="h-3 w-3 mr-1 text-green-500" />
-              <TrendingDown v-else class="h-3 w-3 mr-1 text-red-500" />
-              {{ formatPercentage(stats.revenue_growth) }} from last month
-            </p>
-          </CardContent>
+          </div>
+          <div class="text-2xl font-bold">{{ formatCurrency(stats.total_revenue) }}</div>
+          <p class="text-xs text-muted-foreground flex items-center">
+            <TrendingUp v-if="stats.revenue_growth > 0" class="h-3 w-3 mr-1 text-green-500" />
+            <TrendingDown v-else class="h-3 w-3 mr-1 text-red-500" />
+            {{ formatPercentage(stats.revenue_growth) }} from last month
+          </p>
         </Card>
 
-        <Card>
-          <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle class="text-sm font-medium">Total Invoices</CardTitle>
+        <Card padding="md">
+          <div class="flex flex-row items-center justify-between space-y-0 pb-2">
+            <h3 class="text-sm font-medium">Total Invoices</h3>
             <FileText class="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div class="text-2xl font-bold">{{ stats.total_invoices }}</div>
-            <p class="text-xs text-muted-foreground flex items-center">
-              <TrendingUp v-if="stats.invoice_growth > 0" class="h-3 w-3 mr-1 text-green-500" />
-              <TrendingDown v-else class="h-3 w-3 mr-1 text-red-500" />
-              {{ formatPercentage(stats.invoice_growth) }} from last month
-            </p>
-          </CardContent>
+          </div>
+          <div class="text-2xl font-bold">{{ stats.total_invoices }}</div>
+          <p class="text-xs text-muted-foreground flex items-center">
+            <TrendingUp v-if="stats.invoice_growth > 0" class="h-3 w-3 mr-1 text-green-500" />
+            <TrendingDown v-else class="h-3 w-3 mr-1 text-red-500" />
+            {{ formatPercentage(stats.invoice_growth) }} from last month
+          </p>
         </Card>
 
-        <Card>
-          <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle class="text-sm font-medium">Active Members</CardTitle>
+        <Card padding="md">
+          <div class="flex flex-row items-center justify-between space-y-0 pb-2">
+            <h3 class="text-sm font-medium">Active Members</h3>
             <Users class="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div class="text-2xl font-bold">{{ stats.active_members }}</div>
-            <p class="text-xs text-muted-foreground">
-              {{ stats.members_count }} total members
-            </p>
-          </CardContent>
+          </div>
+          <div class="text-2xl font-bold">{{ stats.active_members }}</div>
+          <p class="text-xs text-muted-foreground">
+            {{ stats.members_count }} total members
+          </p>
         </Card>
 
-        <Card>
-          <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle class="text-sm font-medium">Overdue Amount</CardTitle>
+        <Card padding="md">
+          <div class="flex flex-row items-center justify-between space-y-0 pb-2">
+            <h3 class="text-sm font-medium">Overdue Amount</h3>
             <AlertTriangle class="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div class="text-2xl font-bold">{{ formatCurrency(stats.overdue_amount) }}</div>
-            <p class="text-xs text-muted-foreground">
-              {{ stats.overdue_count }} overdue invoices
-            </p>
-          </CardContent>
+          </div>
+          <div class="text-2xl font-bold">{{ formatCurrency(stats.overdue_amount) }}</div>
+          <p class="text-xs text-muted-foreground">
+            {{ stats.overdue_count }} overdue invoices
+          </p>
         </Card>
       </div>
 
       <!-- Admin Quick Actions -->
       <Card>
-        <CardHeader>
-          <CardTitle>Admin Actions</CardTitle>
-          <CardDescription>Administrative tasks and management tools</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <template #header>
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Admin Actions</h2>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Administrative tasks and management tools</p>
+        </template>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             <Link v-if="canCreateInvoices" :href="route('invoices.create')">
               <Button class="w-full h-20 flex-col gap-2">
                 <Plus class="h-5 w-5" />
@@ -195,7 +187,7 @@ const getStatusBadgeVariant = (status: string) => {
               </Button>
             </Link>
 
-            <Link v-if="canManageMembers" :href="route('organizations.members.invite', $page.props.auth.currentOrganization.id)">
+            <Link v-if="canManageMembers" :href="route('organizations.members.invite', $page.props.auth.currentOrganization.uuid)">
               <Button variant="outline" class="w-full h-20 flex-col gap-2">
                 <UserPlus class="h-5 w-5" />
                 <span class="text-xs">Invite Member</span>
@@ -209,7 +201,7 @@ const getStatusBadgeVariant = (status: string) => {
               </Button>
             </Link>
 
-            <Link v-if="canManageOrganization" :href="route('organizations.settings', $page.props.auth.currentOrganization.id)">
+            <Link v-if="canManageOrganization" :href="route('organizations.settings', $page.props.auth.currentOrganization.uuid)">
               <Button variant="outline" class="w-full h-20 flex-col gap-2">
                 <Building class="h-5 w-5" />
                 <span class="text-xs">Org Settings</span>
@@ -223,17 +215,16 @@ const getStatusBadgeVariant = (status: string) => {
               </Button>
             </Link>
           </div>
-        </CardContent>
       </Card>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Recent Invoices -->
         <Card>
-          <CardHeader>
+          <template #header>
             <div class="flex items-center justify-between">
               <div>
-                <CardTitle>Recent Invoices</CardTitle>
-                <CardDescription>Latest invoice activity</CardDescription>
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Recent Invoices</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Latest invoice activity</p>
               </div>
               <Link :href="route('invoices.index')">
                 <Button variant="ghost" size="sm">
@@ -242,9 +233,9 @@ const getStatusBadgeVariant = (status: string) => {
                 </Button>
               </Link>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div v-if="recentInvoices.length > 0" class="space-y-4">
+          </template>
+
+          <div v-if="recentInvoices.length > 0" class="space-y-4">
               <div v-for="invoice in recentInvoices" :key="invoice.id" class="flex items-center justify-between p-4 border rounded-lg">
                 <div class="flex items-center space-x-4">
                   <div>
@@ -275,17 +266,16 @@ const getStatusBadgeVariant = (status: string) => {
                 </Link>
               </div>
             </div>
-          </CardContent>
         </Card>
 
         <!-- System Alerts & Activity -->
         <Card>
-          <CardHeader>
-            <CardTitle>System Activity</CardTitle>
-            <CardDescription>Recent system events and alerts</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div v-if="recentActivity?.length > 0" class="space-y-4">
+          <template #header>
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white">System Activity</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Recent system events and alerts</p>
+          </template>
+
+          <div v-if="recentActivity?.length > 0" class="space-y-4">
               <div v-for="activity in recentActivity" :key="activity.id" class="flex items-start space-x-3">
                 <div class="flex-shrink-0">
                   <Activity class="h-4 w-4 mt-1 text-muted-foreground" />
@@ -300,7 +290,6 @@ const getStatusBadgeVariant = (status: string) => {
               <Activity class="mx-auto h-8 w-8 mb-2" />
               <p class="text-sm">No recent activity</p>
             </div>
-          </CardContent>
         </Card>
       </div>
     </div>

@@ -23,6 +23,7 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
     });
 
     Route::middleware('permission:payments.create')->group(function () {
+        Route::get('invoices/{invoice}/payments/create', [PaymentController::class, 'create'])->name('invoices.payments.create');
         Route::post('invoices/{invoice}/payments', [PaymentController::class, 'store'])->name('payments.store');
     });
 

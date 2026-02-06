@@ -266,8 +266,11 @@ class DashboardController extends Controller
             ->map(function ($invoice) {
                 return [
                     'id' => $invoice->id,
+                    'uuid' => $invoice->uuid,
                     'invoice_number' => $invoice->invoice_number,
                     'client' => [
+                        'id' => $invoice->client->id,
+                        'uuid' => $invoice->client->uuid,
                         'name' => $invoice->client->name,
                     ],
                     'total' => $invoice->total,
@@ -295,8 +298,11 @@ class DashboardController extends Controller
             ->map(function ($invoice) {
                 return [
                     'id' => $invoice->id,
+                    'uuid' => $invoice->uuid,
                     'invoice_number' => $invoice->invoice_number,
                     'client' => [
+                        'id' => $invoice->client->id,
+                        'uuid' => $invoice->client->uuid,
                         'name' => $invoice->client->name,
                     ],
                     'total' => $invoice->total,
@@ -316,8 +322,11 @@ class DashboardController extends Controller
                 $daysOverdue = $invoice->due_date ? Carbon::now()->diffInDays($invoice->due_date) : 0;
                 return [
                     'id' => $invoice->id,
+                    'uuid' => $invoice->uuid,
                     'invoice_number' => $invoice->invoice_number,
                     'client' => [
+                        'id' => $invoice->client->id,
+                        'uuid' => $invoice->client->uuid,
                         'name' => $invoice->client->name,
                     ],
                     'total' => $invoice->total,
@@ -335,7 +344,12 @@ class DashboardController extends Controller
             ->map(function ($payment) {
                 return [
                     'id' => $payment->id,
+                    'uuid' => $payment->uuid,
+                    'invoice_id' => $payment->invoice->id,
+                    'invoice_uuid' => $payment->invoice->uuid,
                     'invoice_number' => $payment->invoice->invoice_number,
+                    'client_id' => $payment->invoice->client->id,
+                    'client_uuid' => $payment->invoice->client->uuid,
                     'client_name' => $payment->invoice->client->name,
                     'amount' => $payment->amount,
                     'payment_date' => $payment->created_at->toDateString(),

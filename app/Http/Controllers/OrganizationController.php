@@ -111,6 +111,7 @@ class OrganizationController extends Controller
 
                 return [
                     'id' => $member->id,
+                    'uuid' => $member->uuid,
                     'name' => $member->name,
                     'email' => $member->email,
                     'pivot' => [

@@ -19,7 +19,7 @@ class CurrencyController extends Controller
             ->orderBy('name')
             ->get();
 
-        return Inertia::render('settings/Currencies', [
+        return Inertia::render('settings/organization/Currencies', [
             'currencies' => $currencies,
         ]);
     }

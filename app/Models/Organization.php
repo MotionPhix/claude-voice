@@ -5,10 +5,22 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Organization extends Model
 {
     use HasFactory;
+
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function ($organization) {
+            if (empty($organization->uuid)) {
+                $organization->uuid = (string) Str::uuid();
+            }
+        });
+    }
 
     protected $fillable = [
         'name',
@@ -23,6 +35,7 @@ class Organization extends Model
         'tax_id',
         'website',
         'logo',
+        'invoice_template_id',
         'billing_email',
         'stripe_customer_id',
         'is_active',
@@ -35,6 +48,14 @@ class Organization extends Model
             'is_active' => 'boolean',
             'settings' => 'array',
         ];
+    }
+
+    /**
+     * Get the invoice template for this organization.
+     */
+    public function invoiceTemplate(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(InvoiceTemplate::class);
     }
 
     /**

@@ -3,7 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import OrganizationSwitcher from '@/Components/Organization/OrganizationSwitcher.vue';
+import OrganizationSwitcher from '@/components/custom/OrganizationSwitcher.vue';
+import GlobalSearch from '@/components/GlobalSearch.vue';
 import { useAppearance } from '@/composables/useAppearance';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
@@ -82,15 +83,10 @@ const navigation = computed(() => {
     },
     {
       name: 'Invoices',
+      href: route('invoices.index'),
       icon: FileText,
       current: page.url.startsWith('/invoices'),
       visible: true, // Invoice viewing is generally available
-      children: [
-        { name: 'All Invoices', href: route('invoices.index'), visible: true },
-        { name: 'Create Invoice', href: route('invoices.create'), visible: canCreateInvoices },
-        { name: 'Draft Invoices', href: route('invoices.index', { status: 'draft' }), visible: true },
-        { name: 'Overdue Invoices', href: route('invoices.index', { status: 'overdue' }), visible: true },
-      ].filter(child => child.visible),
     },
     {
       name: 'Clients',
@@ -128,7 +124,7 @@ const navigation = computed(() => {
 const secondaryNavigation = [
   {
     name: 'Settings',
-    href: route('profile.edit'),
+    href: route('settings.account.profile'),
     icon: Settings,
     current: page.url.startsWith('/settings'),
   },
@@ -209,17 +205,22 @@ const pageTitle = computed(() => {
       ]"
     >
       <div class="flex h-full flex-col">
-        <!-- Logo/Brand -->
-        <div class="flex h-16 items-center justify-between border-b border-gray-200 px-6 dark:border-gray-700">
-          <Link :href="route('dashboard')" class="flex items-center">
-            <div class="mr-3 flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
-              <FileText class="h-5 w-5 text-white" />
-            </div>
-            <span class="text-xl font-bold text-gray-900 dark:text-white">InvoiceHub</span>
-          </Link>
-          <Button variant="ghost" size="icon" class="lg:hidden" @click="closeSidebar" aria-label="Close navigation menu">
-            <X class="h-5 w-5" />
-          </Button>
+        <!-- Logo/Brand & Organization Switcher -->
+        <div class="border-b border-gray-200 px-4 py-4 dark:border-gray-700">
+          <div class="flex items-center justify-between mb-4">
+            <Link :href="route('dashboard')" class="flex items-center">
+              <div class="mr-3 flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
+                <FileText class="h-5 w-5 text-white" />
+              </div>
+              <span class="text-xl font-bold text-gray-900 dark:text-white">InvoiceHub</span>
+            </Link>
+            <Button variant="ghost" size="icon" class="lg:hidden" @click="closeSidebar" aria-label="Close navigation menu">
+              <X class="h-5 w-5" />
+            </Button>
+          </div>
+
+          <!-- Organization Switcher -->
+          <OrganizationSwitcher />
         </div>
 
         <!-- Navigation -->
@@ -327,19 +328,6 @@ const pageTitle = computed(() => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" class="w-56">
-              <DropdownMenuItem as-child>
-                <Link :href="route('profile.edit')">
-                  <User class="mr-2 h-4 w-4" />
-                  Profile
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem as-child>
-                <Link :href="route('profile.edit')">
-                  <Settings class="mr-2 h-4 w-4" />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem @click="logout">
                 <LogOut class="mr-2 h-4 w-4" />
                 Sign out
@@ -387,15 +375,9 @@ const pageTitle = computed(() => {
           </div>
 
           <div class="flex items-center space-x-4">
-            <!-- Organization Switcher -->
-            <OrganizationSwitcher />
-
-            <!-- Search -->
+            <!-- Global Search -->
             <div class="hidden sm:block">
-              <div class="relative">
-                <Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
-                <Input v-model="searchQuery" type="search" placeholder="Search invoices..." class="w-64 pl-9" @keydown.enter="performSearch" />
-              </div>
+              <GlobalSearch />
             </div>
 
             <!-- Theme toggle -->
@@ -448,19 +430,6 @@ const pageTitle = computed(() => {
                   <div class="font-medium">{{ user?.name }}</div>
                   <div class="text-xs text-gray-500 dark:text-gray-400">{{ user?.email }}</div>
                 </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem as-child>
-                  <Link :href="route('profile.edit')">
-                    <User class="mr-2 h-4 w-4" />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem as-child>
-                  <Link :href="route('profile.edit')">
-                    <Settings class="mr-2 h-4 w-4" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem @click="logout">
                   <LogOut class="mr-2 h-4 w-4" />

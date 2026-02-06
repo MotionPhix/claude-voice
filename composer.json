@@ -16,6 +16,7 @@
         "inertiaui/modal": "v1.0.0-beta.4",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
+        "protonemedia/laravel-cross-eloquent-search": "^4.0",
         "tightenco/ziggy": "^2.4"
     },
     "require-dev": {

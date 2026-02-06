@@ -15,7 +15,7 @@ import {
 
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Card from '@/components/custom/Card.vue';
 import { Badge } from '@/components/ui/badge';
 
 interface OutstandingInvoice {
@@ -276,7 +276,7 @@ const getDaysOverdueSeverity = (days: number) => {
                 </div>
 
                 <div class="flex items-center gap-2">
-                  <Link :href="route('invoices.show', invoice.id)">
+                  <Link :href="route('invoices.show', invoice.uuid)">
                     <Button variant="outline" size="sm">
                       <Eye class="h-4 w-4" />
                     </Button>

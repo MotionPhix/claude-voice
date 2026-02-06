@@ -1,10 +1,13 @@
 <?php
 
 use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\SystemNotificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->prefix('api')->name('api.')->group(function () {
+    // Global Search
+    Route::get('/search', [SearchController::class, 'search'])->name('search');
     // Invoice API
     Route::prefix('invoices')->name('invoices.')->group(function () {
         Route::get('/', [InvoiceController::class, 'index'])->name('index');

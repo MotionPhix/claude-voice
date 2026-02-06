@@ -24,14 +24,22 @@ import {
     Share,
     Receipt,
     DollarSign,
-    FileText
+    FileText,
+    StickyNote
 } from 'lucide-vue-next';
 
 import AppLayout from '@/layouts/AppLayout.vue';
+import InvoicePreview from '@/components/InvoicePreview.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Card from '@/components/custom/Card.vue';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Modal, ModalLink } from '@inertiaui/modal-vue';
+import ModalRoot from '@/components/custom/ModalRoot.vue';
+import ModalHeader from '@/components/custom/ModalHeader.vue';
+import ModalScrollable from '@/components/custom/ModalScrollable.vue';
+import ModalFooter from '@/components/custom/ModalFooter.vue';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -47,19 +55,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
     Alert,
     AlertDescription,
@@ -142,18 +138,9 @@ const props = defineProps<Props>();
 const { canEditInvoices, canDeleteInvoices, canSendInvoices, canMarkInvoicesPaid } = usePermissions();
 
 // Reactive state
-const showPaymentDialog = ref(false);
-const showDeleteDialog = ref(false);
 const isProcessing = ref(false);
-
-// Payment form
-const paymentForm = useForm({
-    amount: props.invoice.remaining_balance,
-    payment_date: new Date().toISOString().split('T')[0],
-    method: 'bank_transfer',
-    reference: '',
-    notes: ''
-});
+const activeTab = ref('invoice');
+const internalNotes = ref('');
 
 // Breadcrumbs
 const breadcrumbs = [
@@ -164,41 +151,32 @@ const breadcrumbs = [
 
 // Status configuration
 const statusConfig = {
-    draft: { 
-        color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300', 
+    draft: {
+        color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
         icon: FileText,
         label: 'Draft'
     },
-    sent: { 
-        color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300', 
+    sent: {
+        color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
         icon: Send,
         label: 'Sent'
     },
-    paid: { 
-        color: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300', 
+    paid: {
+        color: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
         icon: CheckCircle,
         label: 'Paid'
     },
-    overdue: { 
-        color: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300', 
+    overdue: {
+        color: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
         icon: AlertTriangle,
         label: 'Overdue'
     },
-    cancelled: { 
-        color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400', 
+    cancelled: {
+        color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
         icon: FileText,
         label: 'Cancelled'
     }
 };
-
-const paymentMethods = [
-    { value: 'cash', label: 'Cash' },
-    { value: 'check', label: 'Check' },
-    { value: 'bank_transfer', label: 'Bank Transfer' },
-    { value: 'credit_card', label: 'Credit Card' },
-    { value: 'paypal', label: 'PayPal' },
-    { value: 'other', label: 'Other' }
-];
 
 // Computed properties
 const statusInfo = computed(() => statusConfig[props.invoice.status]);
@@ -232,6 +210,34 @@ const progressPercentage = computed(() => {
     return (props.invoice.amount_paid / props.invoice.total) * 100;
 });
 
+const currencySymbol = computed(() => {
+    const symbols: Record<string, string> = {
+        USD: '$',
+        EUR: '€',
+        GBP: '£',
+        JPY: '¥',
+        AUD: 'A$',
+        CAD: 'C$',
+        CHF: 'CHF',
+        CNY: '¥',
+        INR: '₹',
+        KES: 'KSh',
+        NGN: '₦',
+        ZAR: 'R',
+        GHS: 'GH₵',
+        TZS: 'TSh',
+        UGX: 'USh',
+        RWF: 'FRw',
+        ETB: 'Br'
+    };
+    return symbols[props.invoice.currency] || props.invoice.currency;
+});
+
+const daysOverdue = computed(() => {
+    if (!props.invoice.is_overdue || !props.invoice.days_overdue) return 0;
+    return props.invoice.days_overdue;
+});
+
 // Helper functions
 const formatCurrency = (amount: number, currency: string = 'USD'): string => {
     return new Intl.NumberFormat('en-US', {
@@ -260,7 +266,7 @@ const formatShortDate = (dateString: string): string => {
 // Actions
 const sendInvoice = () => {
     isProcessing.value = true;
-    router.post(`/invoices/${props.invoice.id}/send`, {}, {
+    router.post(route('invoices.send', props.invoice.uuid), {}, {
         onFinish: () => {
             isProcessing.value = false;
         }
@@ -268,39 +274,24 @@ const sendInvoice = () => {
 };
 
 const duplicateInvoice = () => {
-    router.post(`/invoices/${props.invoice.id}/duplicate`);
+    router.post(route('invoices.duplicate', props.invoice.uuid));
 };
 
 const deleteInvoice = () => {
-    router.delete(`/invoices/${props.invoice.id}`, {
-        onSuccess: () => {
-            showDeleteDialog.value = false;
-        }
-    });
+    router.delete(route('invoices.destroy', props.invoice.uuid));
 };
 
 const downloadPDF = () => {
-    window.open(`/invoices/${props.invoice.id}/pdf`, '_blank');
+    window.open(route('invoices.pdf', props.invoice.uuid), '_blank');
 };
 
 const printInvoice = () => {
     window.print();
 };
 
-const recordPayment = () => {
-    paymentForm.post(`/invoices/${props.invoice.id}/payments`, {
-        onSuccess: () => {
-            showPaymentDialog.value = false;
-            paymentForm.reset();
-            paymentForm.amount = props.invoice.remaining_balance;
-            paymentForm.payment_date = new Date().toISOString().split('T')[0];
-        }
-    });
-};
-
 const deletePayment = (paymentId: number) => {
     if (confirm('Are you sure you want to delete this payment?')) {
-        router.delete(`/payments/${paymentId}`);
+        router.delete(route('payments.destroy', paymentId));
     }
 };
 
@@ -353,10 +344,13 @@ const shareInvoice = () => {
                         <!-- Quick Actions -->
                         <Tooltip v-if="canRecordPayment">
                             <TooltipTrigger as-child>
-                                <Button @click="showPaymentDialog = true" class="bg-green-600 hover:bg-green-700">
+                                <ModalLink
+                                    :href="route('invoices.payments.create', invoice.uuid)"
+                                    class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-green-600 text-white hover:bg-green-700 h-10 px-4 py-2"
+                                >
                                     <CreditCard class="h-4 w-4 mr-2" />
                                     Record Payment
-                                </Button>
+                                </ModalLink>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>Record a payment for this invoice</p>
@@ -378,7 +372,7 @@ const shareInvoice = () => {
                         <Tooltip v-if="canEdit">
                             <TooltipTrigger as-child>
                                 <Button variant="outline" as-child>
-                                    <Link :href="`/invoices/${invoice.id}/edit`">
+                                    <Link :href="route('invoices.edit', invoice.uuid)">
                                         <Edit2 class="h-4 w-4 mr-2" />
                                         Edit
                                     </Link>
@@ -414,14 +408,15 @@ const shareInvoice = () => {
                                     Duplicate
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem
+                                <ModalLink
                                     v-if="canDelete"
-                                    @click="showDeleteDialog = true"
-                                    class="text-red-600 dark:text-red-400"
+                                    href="#delete-invoice"
+                                    as="div"
+                                    class="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 text-red-600 dark:text-red-400"
                                 >
                                     <Trash2 class="mr-2 h-4 w-4" />
                                     Delete
-                                </DropdownMenuItem>
+                                </ModalLink>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
@@ -436,16 +431,98 @@ const shareInvoice = () => {
                     </AlertDescription>
                 </Alert>
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <!-- Main Content -->
-                    <div class="lg:col-span-2 space-y-6">
-                        <!-- Invoice Details -->
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Invoice Details</CardTitle>
-                                <CardDescription>Invoice information and line items</CardDescription>
-                            </CardHeader>
-                            <CardContent class="space-y-6">
+                <!-- Status Badge with Delay Indicator -->
+                <div v-if="invoice.status !== 'draft'" class="mb-6 flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <Badge :class="statusInfo.color" class="text-sm px-3 py-1">
+                            <component :is="statusInfo.icon" class="mr-1 h-4 w-4" />
+                            {{ statusInfo.label }}
+                        </Badge>
+                        <span v-if="daysOverdue > 0" class="text-sm text-red-600 dark:text-red-400 font-medium">
+                            {{ daysOverdue }} day{{ daysOverdue !== 1 ? 's' : '' }} overdue
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Key Metrics Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <Card>
+                        <CardContent class="pt-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Amount</p>
+                                    <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                                        {{ formatCurrency(invoice.total, invoice.currency) }}
+                                    </p>
+                                </div>
+                                <div class="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                                    <DollarSign class="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent class="pt-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Open Amount</p>
+                                    <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                                        {{ formatCurrency(invoice.remaining_balance, invoice.currency) }}
+                                    </p>
+                                </div>
+                                <div class="p-3 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
+                                    <AlertTriangle class="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent class="pt-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">VAT Amount</p>
+                                    <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                                        {{ formatCurrency(invoice.tax_amount, invoice.currency) }}
+                                    </p>
+                                </div>
+                                <div class="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
+                                    <Receipt class="h-6 w-6 text-green-600 dark:text-green-400" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Main Content - Left Column with Tabs -->
+                    <div class="space-y-6">
+                        <!-- Tabbed Content -->
+                        <Tabs v-model="activeTab" default-value="invoice">
+                            <TabsList class="grid w-full grid-cols-3">
+                                <TabsTrigger value="invoice">
+                                    <FileText class="h-4 w-4 mr-2" />
+                                    Invoice
+                                </TabsTrigger>
+                                <TabsTrigger value="history">
+                                    <Clock class="h-4 w-4 mr-2" />
+                                    History
+                                </TabsTrigger>
+                                <TabsTrigger value="notes">
+                                    <StickyNote class="h-4 w-4 mr-2" />
+                                    Notes
+                                </TabsTrigger>
+                            </TabsList>
+
+                            <!-- Invoice Tab -->
+                            <TabsContent value="invoice" class="space-y-6">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Invoice Details</CardTitle>
+                                        <CardDescription>Invoice information and line items</CardDescription>
+                                    </CardHeader>
+                                    <CardContent class="space-y-6">
                                 <!-- Basic Info -->
                                 <div class="grid grid-cols-2 gap-6">
                                     <div>
@@ -543,326 +620,317 @@ const shareInvoice = () => {
                                         <p class="text-sm text-gray-900 dark:text-white mt-1 whitespace-pre-wrap">{{ invoice.terms }}</p>
                                     </div>
                                 </div>
-                            </CardContent>
-                        </Card>
+                                    </CardContent>
+                                </Card>
 
-                        <!-- Payment History -->
-                        <Card v-if="invoice.payments.length > 0">
-                            <CardHeader>
-                                <CardTitle>Payment History</CardTitle>
-                                <CardDescription>All payments received for this invoice</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div class="space-y-4">
-                                    <div
-                                        v-for="payment in invoice.payments"
-                                        :key="payment.id"
-                                        class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                                    >
-                                        <div class="flex items-center gap-4">
-                                            <div class="flex-shrink-0 p-2 bg-green-100 dark:bg-green-900/20 rounded-full">
-                                                <Receipt class="h-5 w-5 text-green-600" />
-                                            </div>
+                                <!-- Payments Section -->
+                                <Card>
+                                    <CardHeader>
+                                        <div class="flex items-center justify-between">
                                             <div>
-                                                <p class="font-medium text-gray-900 dark:text-white">
-                                                    {{ formatCurrency(payment.amount, invoice.currency) }}
-                                                </p>
-                                                <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                                                    <span>{{ payment.method.replace('_', ' ').toUpperCase() }}</span>
-                                                    <span>•</span>
-                                                    <span>{{ formatShortDate(payment.payment_date) }}</span>
-                                                    <span v-if="payment.reference">• Ref: {{ payment.reference }}</span>
+                                                <CardTitle>Payments</CardTitle>
+                                                <CardDescription>Payment history for this invoice</CardDescription>
+                                            </div>
+                                            <ModalLink
+                                                v-if="canRecordPayment"
+                                                :href="route('invoices.payments.create', invoice.uuid)"
+                                                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-green-600 text-white hover:bg-green-700 h-9 rounded-md px-3"
+                                            >
+                                                <Plus class="h-4 w-4 mr-2" />
+                                                Add Payment
+                                            </ModalLink>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div v-if="invoice.payments.length > 0" class="space-y-4">
+                                            <div
+                                                v-for="payment in invoice.payments"
+                                                :key="payment.id"
+                                                class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                                            >
+                                                <div class="flex items-center gap-4">
+                                                    <div class="flex-shrink-0 p-2 bg-green-100 dark:bg-green-900/20 rounded-full">
+                                                        <Receipt class="h-5 w-5 text-green-600" />
+                                                    </div>
+                                                    <div>
+                                                        <p class="font-medium text-gray-900 dark:text-white">
+                                                            {{ formatCurrency(payment.amount, invoice.currency) }}
+                                                        </p>
+                                                        <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                                            <span>{{ payment.method.replace('_', ' ').toUpperCase() }}</span>
+                                                            <span>•</span>
+                                                            <span>{{ formatShortDate(payment.payment_date) }}</span>
+                                                            <span v-if="payment.reference">• Ref: {{ payment.reference }}</span>
+                                                        </div>
+                                                        <p v-if="payment.notes" class="text-sm text-gray-500 mt-1">
+                                                            {{ payment.notes }}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <p v-if="payment.notes" class="text-sm text-gray-500 mt-1">
-                                                    {{ payment.notes }}
-                                                </p>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger as-child>
+                                                        <Button variant="ghost" size="icon">
+                                                            <MoreHorizontal class="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem @click="deletePayment(payment.id)" class="text-red-600 dark:text-red-400">
+                                                            <Trash2 class="mr-2 h-4 w-4" />
+                                                            Delete Payment
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </div>
                                         </div>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger as-child>
-                                                <Button variant="ghost" size="icon">
-                                                    <MoreHorizontal class="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem @click="deletePayment(payment.id)" class="text-red-600 dark:text-red-400">
-                                                    <Trash2 class="mr-2 h-4 w-4" />
-                                                    Delete Payment
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                        <div v-else class="py-8 text-center">
+                                            <Receipt class="h-12 w-12 mx-auto text-gray-400 mb-3" />
+                                            <p class="text-sm text-gray-500 dark:text-gray-400">No payments recorded yet</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <!-- Client Information Card in Invoice Tab -->
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle class="flex items-center gap-2">
+                                            <User class="h-5 w-5" />
+                                            Client Information
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent class="space-y-4">
+                                        <div>
+                                            <Link
+                                                :href="route('clients.show', invoice.client.uuid)"
+                                                class="font-semibold text-lg text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400"
+                                            >
+                                                {{ invoice.client.name }}
+                                            </Link>
+                                        </div>
+
+                                        <div class="space-y-2">
+                                            <div v-if="invoice.client.email" class="flex items-center gap-2 text-sm">
+                                                <Mail class="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                                <a
+                                                    :href="`mailto:${invoice.client.email}`"
+                                                    class="text-blue-600 dark:text-blue-400 hover:underline"
+                                                >
+                                                    {{ invoice.client.email }}
+                                                </a>
+                                            </div>
+
+                                            <div v-if="invoice.client.phone" class="flex items-center gap-2 text-sm">
+                                                <Phone class="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                                <a
+                                                    :href="`tel:${invoice.client.phone}`"
+                                                    class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                                                >
+                                                    {{ invoice.client.phone }}
+                                                </a>
+                                            </div>
+
+                                            <div v-if="invoice.client.address" class="flex items-start gap-2 text-sm">
+                                                <MapPin class="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                                                <div class="text-gray-600 dark:text-gray-400">
+                                                    <div>{{ invoice.client.address }}</div>
+                                                    <div v-if="invoice.client.city || invoice.client.state || invoice.client.postal_code">
+                                                        {{ invoice.client.city }}{{ invoice.client.city && (invoice.client.state || invoice.client.postal_code) ? ', ' : '' }}
+                                                        {{ invoice.client.state }} {{ invoice.client.postal_code }}
+                                                    </div>
+                                                    <div v-if="invoice.client.country">{{ invoice.client.country }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <Separator />
+
+                                        <div class="flex items-center justify-between pt-2">
+                                            <Button variant="outline" size="sm" as-child>
+                                                <Link :href="route('clients.show', invoice.client.uuid)">
+                                                    <Eye class="h-4 w-4 mr-2" />
+                                                    View Client
+                                                </Link>
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+
+                            <!-- History Tab -->
+                            <TabsContent value="history" class="space-y-6">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle class="flex items-center gap-2">
+                                            <Calendar class="h-5 w-5" />
+                                            Activity Timeline
+                                        </CardTitle>
+                                        <CardDescription>Complete history of this invoice</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div class="space-y-4">
+                                            <!-- Invoice Created -->
+                                            <div class="flex gap-3">
+                                                <div class="flex-shrink-0 w-2 h-2 rounded-full bg-gray-400 mt-2"></div>
+                                                <div>
+                                                    <p class="text-sm font-medium text-gray-900 dark:text-white">Invoice created</p>
+                                                    <p class="text-xs text-gray-500">{{ formatShortDate(invoice.created_at) }}</p>
+                                                </div>
+                                            </div>
+
+                                            <!-- Invoice Sent -->
+                                            <div v-if="invoice.sent_at" class="flex gap-3">
+                                                <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
+                                                <div>
+                                                    <p class="text-sm font-medium text-gray-900 dark:text-white">Invoice sent</p>
+                                                    <p class="text-xs text-gray-500">{{ formatShortDate(invoice.sent_at) }}</p>
+                                                </div>
+                                            </div>
+
+                                            <!-- Payments -->
+                                            <div v-for="payment in invoice.payments" :key="`timeline-${payment.id}`" class="flex gap-3">
+                                                <div class="flex-shrink-0 w-2 h-2 rounded-full bg-green-500 mt-2"></div>
+                                                <div>
+                                                    <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                                        Payment received: {{ formatCurrency(payment.amount, invoice.currency) }}
+                                                    </p>
+                                                    <p class="text-xs text-gray-500">{{ formatShortDate(payment.payment_date) }}</p>
+                                                </div>
+                                            </div>
+
+                                            <!-- Invoice Paid -->
+                                            <div v-if="invoice.paid_at" class="flex gap-3">
+                                                <div class="flex-shrink-0 w-2 h-2 rounded-full bg-green-600 mt-2"></div>
+                                                <div>
+                                                    <p class="text-sm font-medium text-gray-900 dark:text-white">Invoice fully paid</p>
+                                                    <p class="text-xs text-gray-500">{{ formatShortDate(invoice.paid_at) }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <!-- Payment Progress Card -->
+                                <Card v-if="invoice.amount_paid > 0">
+                                    <CardHeader>
+                                        <CardTitle class="flex items-center gap-2">
+                                            <DollarSign class="h-5 w-5" />
+                                            Payment Progress
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div class="space-y-3">
+                                            <div class="flex justify-between text-sm">
+                                                <span class="text-gray-600 dark:text-gray-400">Progress</span>
+                                                <span class="font-medium">{{ Math.round(progressPercentage) }}%</span>
+                                            </div>
+
+                                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                                <div
+                                                    class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                                    :style="{ width: `${progressPercentage}%` }"
+                                                ></div>
+                                            </div>
+
+                                            <div class="space-y-1 text-sm">
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-600 dark:text-gray-400">Paid</span>
+                                                    <span class="text-green-600 font-medium">
+                                                        {{ formatCurrency(invoice.amount_paid, invoice.currency) }}
+                                                    </span>
+                                                </div>
+                                                <div class="flex justify-between">
+                                                    <span class="text-gray-600 dark:text-gray-400">Remaining</span>
+                                                    <span class="text-gray-900 dark:text-white font-medium">
+                                                        {{ formatCurrency(invoice.remaining_balance, invoice.currency) }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+
+                            <!-- Notes Tab -->
+                            <TabsContent value="notes" class="space-y-6">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Internal Notes</CardTitle>
+                                        <CardDescription>Private notes for your team (not visible to client)</CardDescription>
+                                    </CardHeader>
+                                    <CardContent class="space-y-4">
+                                        <Textarea
+                                            v-model="internalNotes"
+                                            placeholder="Add internal notes about this invoice..."
+                                            rows="6"
+                                            class="resize-none"
+                                        />
+                                        <Button size="sm">
+                                            Save Notes
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+
+                                <Card v-if="invoice.notes">
+                                    <CardHeader>
+                                        <CardTitle>Invoice Notes</CardTitle>
+                                        <CardDescription>Notes visible to the client</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p class="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{{ invoice.notes }}</p>
+                                    </CardContent>
+                                </Card>
+
+                                <Card v-if="invoice.terms">
+                                    <CardHeader>
+                                        <CardTitle>Terms & Conditions</CardTitle>
+                                        <CardDescription>Payment terms and conditions</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p class="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{{ invoice.terms }}</p>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        </Tabs>
                     </div>
 
-                    <!-- Sidebar -->
-                    <div class="space-y-6">
-                        <!-- Client Information -->
-                        <Card>
-                            <CardHeader>
-                                <CardTitle class="flex items-center gap-2">
-                                    <User class="h-5 w-5" />
-                                    Client Information
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent class="space-y-4">
-                                <div>
-                                    <Link 
-                                        :href="`/clients/${invoice.client.id}`"
-                                        class="font-semibold text-lg text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400"
-                                    >
-                                        {{ invoice.client.name }}
-                                    </Link>
-                                </div>
-
-                                <div class="space-y-2">
-                                    <div v-if="invoice.client.email" class="flex items-center gap-2 text-sm">
-                                        <Mail class="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                        <a 
-                                            :href="`mailto:${invoice.client.email}`"
-                                            class="text-blue-600 dark:text-blue-400 hover:underline"
-                                        >
-                                            {{ invoice.client.email }}
-                                        </a>
-                                    </div>
-
-                                    <div v-if="invoice.client.phone" class="flex items-center gap-2 text-sm">
-                                        <Phone class="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                        <a 
-                                            :href="`tel:${invoice.client.phone}`"
-                                            class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                                        >
-                                            {{ invoice.client.phone }}
-                                        </a>
-                                    </div>
-
-                                    <div v-if="invoice.client.address" class="flex items-start gap-2 text-sm">
-                                        <MapPin class="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                                        <div class="text-gray-600 dark:text-gray-400">
-                                            <div>{{ invoice.client.address }}</div>
-                                            <div v-if="invoice.client.city || invoice.client.state || invoice.client.postal_code">
-                                                {{ invoice.client.city }}{{ invoice.client.city && (invoice.client.state || invoice.client.postal_code) ? ', ' : '' }}
-                                                {{ invoice.client.state }} {{ invoice.client.postal_code }}
-                                            </div>
-                                            <div v-if="invoice.client.country">{{ invoice.client.country }}</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <Separator />
-
-                                <div class="flex items-center justify-between pt-2">
-                                    <Button variant="outline" size="sm" as-child>
-                                        <Link :href="`/clients/${invoice.client.id}`">
-                                            <Eye class="h-4 w-4 mr-2" />
-                                            View Client
-                                        </Link>
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <!-- Payment Progress -->
-                        <Card v-if="invoice.amount_paid > 0">
-                            <CardHeader>
-                                <CardTitle class="flex items-center gap-2">
-                                    <DollarSign class="h-5 w-5" />
-                                    Payment Progress
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div class="space-y-3">
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600 dark:text-gray-400">Progress</span>
-                                        <span class="font-medium">{{ Math.round(progressPercentage) }}%</span>
-                                    </div>
-                                    
-                                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                        <div 
-                                            class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                            :style="{ width: `${progressPercentage}%` }"
-                                        ></div>
-                                    </div>
-
-                                    <div class="space-y-1 text-sm">
-                                        <div class="flex justify-between">
-                                            <span class="text-gray-600 dark:text-gray-400">Paid</span>
-                                            <span class="text-green-600 font-medium">
-                                                {{ formatCurrency(invoice.amount_paid, invoice.currency) }}
-                                            </span>
-                                        </div>
-                                        <div class="flex justify-between">
-                                            <span class="text-gray-600 dark:text-gray-400">Remaining</span>
-                                            <span class="text-gray-900 dark:text-white font-medium">
-                                                {{ formatCurrency(invoice.remaining_balance, invoice.currency) }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <!-- Timeline/Activity -->
-                        <Card>
-                            <CardHeader>
-                                <CardTitle class="flex items-center gap-2">
-                                    <Calendar class="h-5 w-5" />
-                                    Activity Timeline
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div class="space-y-4">
-                                    <!-- Invoice Created -->
-                                    <div class="flex gap-3">
-                                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-gray-400 mt-2"></div>
-                                        <div>
-                                            <p class="text-sm font-medium text-gray-900 dark:text-white">Invoice created</p>
-                                            <p class="text-xs text-gray-500">{{ formatShortDate(invoice.created_at) }}</p>
-                                        </div>
-                                    </div>
-
-                                    <!-- Invoice Sent -->
-                                    <div v-if="invoice.sent_at" class="flex gap-3">
-                                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
-                                        <div>
-                                            <p class="text-sm font-medium text-gray-900 dark:text-white">Invoice sent</p>
-                                            <p class="text-xs text-gray-500">{{ formatShortDate(invoice.sent_at) }}</p>
-                                        </div>
-                                    </div>
-
-                                    <!-- Payments -->
-                                    <div v-for="payment in invoice.payments" :key="`timeline-${payment.id}`" class="flex gap-3">
-                                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-green-500 mt-2"></div>
-                                        <div>
-                                            <p class="text-sm font-medium text-gray-900 dark:text-white">
-                                                Payment received: {{ formatCurrency(payment.amount, invoice.currency) }}
-                                            </p>
-                                            <p class="text-xs text-gray-500">{{ formatShortDate(payment.payment_date) }}</p>
-                                        </div>
-                                    </div>
-
-                                    <!-- Invoice Paid -->
-                                    <div v-if="invoice.paid_at" class="flex gap-3">
-                                        <div class="flex-shrink-0 w-2 h-2 rounded-full bg-green-600 mt-2"></div>
-                                        <div>
-                                            <p class="text-sm font-medium text-gray-900 dark:text-white">Invoice fully paid</p>
-                                            <p class="text-xs text-gray-500">{{ formatShortDate(invoice.paid_at) }}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                    <!-- Right Column - Live Preview -->
+                    <div class="sticky top-6 h-fit">
+                        <InvoicePreview
+                            :invoice-number="invoice.invoice_number"
+                            :client="invoice.client"
+                            :issue-date="invoice.issue_date"
+                            :due-date="invoice.due_date"
+                            :currency="invoice.currency"
+                            :currency-symbol="currencySymbol"
+                            :items="invoice.items"
+                            :tax-rate="invoice.tax_rate"
+                            :discount="invoice.discount"
+                            :notes="invoice.notes"
+                            :terms="invoice.terms"
+                        />
                     </div>
                 </div>
 
-                <!-- Record Payment Dialog -->
-                <Dialog v-model:open="showPaymentDialog">
-                    <DialogContent class="sm:max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>Record Payment</DialogTitle>
-                            <DialogDescription>
-                                Record a payment for invoice {{ invoice.invoice_number }}
-                            </DialogDescription>
-                        </DialogHeader>
 
-                        <form @submit.prevent="recordPayment" class="space-y-4">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label for="amount">Amount</Label>
-                                    <Input
-                                        id="amount"
-                                        v-model="paymentForm.amount"
-                                        type="number"
-                                        step="0.01"
-                                        min="0.01"
-                                        :max="invoice.remaining_balance"
-                                        class="mt-1"
-                                        required
-                                    />
-                                    <div v-if="paymentForm.errors.amount" class="text-sm text-red-600 mt-1">
-                                        {{ paymentForm.errors.amount }}
-                                    </div>
-                                </div>
+                <!-- Delete Confirmation Modal (Local) -->
+                <Modal name="delete-invoice" v-slot="{ close }">
+                    <ModalRoot>
+                        <ModalHeader
+                            title="Delete Invoice"
+                            :description="`Are you sure you want to delete invoice ${invoice.invoice_number}? This action cannot be undone.`"
+                            :icon="AlertTriangle"
+                            :on-close="close"
+                        />
 
-                                <div>
-                                    <Label for="payment_date">Payment Date</Label>
-                                    <Input
-                                        id="payment_date"
-                                        v-model="paymentForm.payment_date"
-                                        type="date"
-                                        class="mt-1"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <Label for="method">Payment Method</Label>
-                                <Select v-model="paymentForm.method">
-                                    <SelectTrigger class="mt-1">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem v-for="method in paymentMethods" :key="method.value" :value="method.value">
-                                            {{ method.label }}
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div>
-                                <Label for="reference">Reference (optional)</Label>
-                                <Input
-                                    id="reference"
-                                    v-model="paymentForm.reference"
-                                    placeholder="Transaction ID, check number, etc."
-                                    class="mt-1"
-                                />
-                            </div>
-
-                            <div>
-                                <Label for="notes">Notes (optional)</Label>
-                                <Textarea
-                                    id="notes"
-                                    v-model="paymentForm.notes"
-                                    placeholder="Additional payment notes..."
-                                    class="mt-1"
-                                />
-                            </div>
-
-                            <DialogFooter>
-                                <Button type="button" variant="outline" @click="showPaymentDialog = false">
-                                    Cancel
-                                </Button>
-                                <Button type="submit" :disabled="paymentForm.processing">
-                                    Record Payment
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
-
-                <!-- Delete Confirmation Dialog -->
-                <Dialog v-model:open="showDeleteDialog">
-                    <DialogContent class="sm:max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>Delete Invoice</DialogTitle>
-                            <DialogDescription>
-                                Are you sure you want to delete invoice {{ invoice.invoice_number }}? This action cannot be undone.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter>
-                            <Button variant="outline" @click="showDeleteDialog = false">
+                        <ModalFooter>
+                            <Button variant="outline" @click="close">
                                 Cancel
                             </Button>
                             <Button variant="destructive" @click="deleteInvoice">
                                 Delete Invoice
                             </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                        </ModalFooter>
+                    </ModalRoot>
+                </Modal>
             </div>
         </TooltipProvider>
     </AppLayout>

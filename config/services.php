@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'paychangu' => [
+        'base_url' => env('PAYCHANGU_BASE_URL', 'https://api.paychangu.com'),
+        'public_key' => env('PAYCHANGU_PUBLIC_KEY'),
+        'secret_key' => env('PAYCHANGU_SECRET_KEY'),
+        'webhook_secret' => env('PAYCHANGU_WEBHOOK_SECRET'),
+    ],
+
 ];

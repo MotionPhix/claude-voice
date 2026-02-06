@@ -61,7 +61,7 @@ const props = defineProps({
 });
 
 const selectOrganization = (organization) => {
-    router.post(route('organizations.switch', organization.id), {}, {
+    router.post(route('organizations.switch', organization.uuid), {}, {
         onSuccess: () => {
             router.visit(route('dashboard'));
         }

@@ -211,7 +211,7 @@
                         </p>
                     </div>
                     <Link
-                        :href="route('organizations.members.invite', organization.id)"
+                        :href="route('organizations.members.invite', organization.uuid)"
                         class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                     >
                         Invite Member
@@ -350,20 +350,20 @@ const generalForm = useForm({
 });
 
 const updateOrganization = () => {
-    generalForm.put(route('organizations.update', props.organization.id), {
+    generalForm.put(route('organizations.update', props.organization.uuid), {
         preserveScroll: true,
     });
 };
 
 const removeMember = (memberId) => {
     if (confirm('Are you sure you want to remove this member?')) {
-        router.delete(route('organizations.members.remove', [props.organization.id, memberId]), {
+        router.delete(route('organizations.members.remove', [props.organization.uuid, memberId]), {
             preserveScroll: true,
         });
     }
 };
 
 const deleteOrganization = () => {
-    router.delete(route('organizations.destroy', props.organization.id));
+    router.delete(route('organizations.destroy', props.organization.uuid));
 };
 </script>

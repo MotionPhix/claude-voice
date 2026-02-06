@@ -15,7 +15,7 @@ import {
 
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Card from '@/components/custom/Card.vue';
 import { usePermissions } from '@/composables/usePermissions';
 
 const {

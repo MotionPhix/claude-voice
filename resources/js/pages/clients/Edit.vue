@@ -4,7 +4,7 @@ import { ArrowLeft, Building, Mail, Phone, MapPin, Save, Trash2 } from 'lucide-v
 
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Card from '@/components/custom/Card.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,16 +51,16 @@ const form = Form({
 });
 
 const submit = () => {
-  form.put(route('clients.update', props.client.id), {
+  form.put(route('clients.update', props.client.uuid), {
     onSuccess: () => {
-      router.visit(route('clients.show', props.client.id));
+      router.visit(route('clients.show', props.client.uuid));
     }
   });
 };
 
 const deleteClient = () => {
   if (confirm('Are you sure you want to delete this client? This action cannot be undone.')) {
-    router.delete(route('clients.destroy', props.client.id), {
+    router.delete(route('clients.destroy', props.client.uuid), {
       onSuccess: () => {
         router.visit(route('clients.index'));
       }
@@ -76,7 +76,7 @@ const deleteClient = () => {
     <div class="container mx-auto p-6 space-y-8">
       <!-- Header -->
       <div class="flex items-center gap-4">
-        <Link :href="route('clients.show', client.id)">
+        <Link :href="route('clients.show', client.uuid)">
           <Button variant="outline" size="sm">
             <ArrowLeft class="h-4 w-4 mr-2" />
             Back to Client
@@ -291,7 +291,7 @@ const deleteClient = () => {
             </div>
 
             <div class="flex items-center gap-4">
-              <Link :href="route('clients.show', client.id)">
+              <Link :href="route('clients.show', client.uuid)">
                 <Button variant="outline" type="button">
                   Cancel
                 </Button>

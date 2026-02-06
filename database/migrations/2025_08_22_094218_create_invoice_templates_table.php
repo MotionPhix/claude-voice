@@ -13,9 +13,16 @@ return new class extends Migration
     {
         Schema::create('invoice_templates', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->string('name');
-            $table->json('settings');
-            $table->boolean('is_default')->default(false);
+            $table->string('slug')->unique();
+            $table->text('description')->nullable();
+            $table->string('view_path'); // e.g., 'invoices.templates.default'
+            $table->string('preview_image')->nullable();
+            $table->boolean('is_free')->default(true);
+            $table->decimal('price', 10, 2)->default(0);
+            $table->boolean('is_active')->default(true);
+            $table->json('settings')->nullable();
             $table->timestamps();
         });
     }

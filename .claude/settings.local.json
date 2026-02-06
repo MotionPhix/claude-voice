@@ -21,7 +21,19 @@
       "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan route:list --path=dashboard)",
       "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan make:middleware EnsureUserCanAccessResource --no-interaction)",
       "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan route:list --path=reports)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebFetch(domain:inertiajs.com)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan make:seeder ProductionSeeder --no-interaction)",
+      "Bash(vendor/bin/pint:*)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat vendor/bin/pint --dirty)",
+      "mcp__laravel-boost__last-error",
+      "Bash(C:/Users/Amelia/.config/herd/bin/php.bat vendor/bin/pint --dirty)",
+      "Bash(php.exe vendor/bin/pint:*)",
+      "Bash(/c/Users/Amelia/.config/herd/bin/php.bat artisan route:list --path=invoices)",
+      "mcp__laravel-boost__database-schema",
+      "WebFetch(domain:www.shadcn-vue.com)",
+      "Bash(C:/Users/Amelia/.config/herd/bin/php.bat artisan make:migration:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   },
   "enableAllProjectMcpServers": true,

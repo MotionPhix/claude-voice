@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Traits\BelongsToOrganization;
+use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class RecurringInvoice extends Model
 {
-    use BelongsToOrganization, HasFactory;
+    use BelongsToOrganization, HasFactory, HasUuid;
 
     protected $fillable = [
         'organization_id', 'name', 'client_id', 'currency', 'frequency', 'interval', 'start_date',

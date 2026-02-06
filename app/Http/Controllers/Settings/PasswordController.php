@@ -13,11 +13,13 @@ use Inertia\Response;
 class PasswordController extends Controller
 {
     /**
-     * Show the user's password settings page.
+     * Show the user's security settings page.
      */
     public function edit(): Response
     {
-        return Inertia::render('settings/Password');
+        return Inertia::render('settings/account/Security', [
+            'sessions' => [], // TODO: Implement session tracking
+        ]);
     }
 
     /**
@@ -34,6 +36,15 @@ class PasswordController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
+        return back()->with('status', 'password-updated');
+    }
+
+    /**
+     * Destroy a user session.
+     */
+    public function destroySession(Request $request, string $sessionId): RedirectResponse
+    {
+        // TODO: Implement session destruction
         return back();
     }
 }

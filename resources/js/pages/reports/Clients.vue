@@ -15,7 +15,7 @@ import {
 
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Card from '@/components/custom/Card.vue';
 import { Badge } from '@/components/ui/badge';
 
 interface ClientMetric {
@@ -269,7 +269,7 @@ const getRatingColor = (rating: string) => {
                     {{ client.payment_rating }}
                   </Badge>
                 </div>
-                <Link :href="route('clients.show', client.id)">
+                <Link :href="route('clients.show', client.uuid)">
                   <Button variant="outline" size="sm">
                     <Eye class="h-4 w-4" />
                   </Button>

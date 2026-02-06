@@ -4,13 +4,14 @@ namespace App\Models;
 
 use App\Events\SystemNotificationCreated;
 use App\Traits\BelongsToOrganization;
+use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class SystemNotification extends Model
 {
-    use BelongsToOrganization;
+    use BelongsToOrganization, HasUuid;
 
     protected $fillable = [
         'organization_id',

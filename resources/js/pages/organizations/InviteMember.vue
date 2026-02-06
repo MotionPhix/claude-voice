@@ -5,7 +5,7 @@
         <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
             <div class="mb-6">
                 <Link
-                    :href="route('organizations.settings', organization.id)"
+                    :href="route('organizations.settings', organization.uuid)"
                     class="mb-4 inline-flex items-center text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
                 >
                     <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -137,7 +137,7 @@
                     <!-- Actions -->
                     <div class="flex items-center justify-end gap-3">
                         <Link
-                            :href="route('organizations.settings', organization.id)"
+                            :href="route('organizations.settings', organization.uuid)"
                             class="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                         >
                             Cancel
@@ -177,6 +177,6 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.post(route('organizations.members.send-invite', props.organization.id));
+    form.post(route('organizations.members.send-invite', props.organization.uuid));
 };
 </script>

@@ -2,12 +2,12 @@
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { Form, Head } from '@inertiajs/vue3';
 import { LoaderCircle } from 'lucide-vue-next';
+import CheckboxInput from '@/components/CheckboxInput.vue';
 
 defineProps<{
     status?: string;
@@ -23,7 +23,11 @@ defineProps<{
             {{ status }}
         </div>
 
-        <Form method="post" :action="route('login')" :reset-on-success="['password']" v-slot="{ errors, processing }" class="flex flex-col gap-6">
+        <Form
+          method="post" :action="route('login')"
+          :reset-on-success="['password']"
+          v-slot="{ errors, processing }"
+          class="flex flex-col gap-6">
             <div class="grid gap-6">
                 <div class="grid gap-2">
                     <Label for="email">Email address</Label>
@@ -60,10 +64,7 @@ defineProps<{
                 </div>
 
                 <div class="flex items-center justify-between">
-                    <Label for="remember" class="flex items-center space-x-3">
-                        <Checkbox id="remember" name="remember" :tabindex="3" />
-                        <span>Remember me</span>
-                    </Label>
+                  <CheckboxInput id="remember-me" name="remember" tabindex="3" label="Remember me" />
                 </div>
 
                 <Button type="submit" class="w-full mt-4" :tabindex="4" :disabled="processing">

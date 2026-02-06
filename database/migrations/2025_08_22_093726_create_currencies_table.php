@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('code', 3)->unique();
             $table->string('name');
             $table->string('symbol');
-            $table->decimal('exchange_rate', 10, 6)->default(1.000000);
+            $table->decimal('exchange_rate', 15, 6)->default(1.000000);
             $table->boolean('is_base')->default(false);
             $table->boolean('is_active')->default(true);
             $table->timestamp('last_updated_at')->nullable();

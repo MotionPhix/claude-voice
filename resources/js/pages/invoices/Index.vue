@@ -32,7 +32,7 @@ import {
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Card from '@/components/custom/Card.vue';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -62,7 +62,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
-import { Checkbox } from '@/components/ui/checkbox';
+import CheckboxInput from '@/components/CheckboxInput.vue';
 import {
     Tooltip,
     TooltipContent,
@@ -74,6 +74,7 @@ import { usePermissions } from '@/composables/usePermissions';
 
 interface Invoice {
     id: number;
+    uuid: string;
     invoice_number: string;
     client: {
         id: number;
@@ -150,8 +151,8 @@ const viewMode = ref<'table' | 'grid'>('table');
 // Form for filters
 const filterForm = useForm({
     search: props.filters?.search || '',
-    status: props.filters?.status || '',
-    client_id: props.filters?.client_id?.toString() || '',
+    status: props.filters?.status || 'all',
+    client_id: props.filters?.client_id?.toString() || 'all',
     date_from: props.filters?.date_from || '',
     date_to: props.filters?.date_to || '',
     sort_by: props.filters?.sort_by || 'created_at',
@@ -194,7 +195,7 @@ const statusConfig = {
 };
 
 const statusOptions = [
-    { value: '', label: 'All Statuses' },
+    { value: 'all', label: 'All Statuses' },
     { value: 'draft', label: 'Draft' },
     { value: 'sent', label: 'Sent' },
     { value: 'paid', label: 'Paid' },
@@ -204,10 +205,10 @@ const statusOptions = [
 
 // Computed properties
 const hasActiveFilters = computed(() => {
-    return filterForm.search || 
-           filterForm.status || 
-           filterForm.client_id || 
-           filterForm.date_from || 
+    return filterForm.search ||
+           (filterForm.status && filterForm.status !== 'all') ||
+           (filterForm.client_id && filterForm.client_id !== 'all') ||
+           filterForm.date_from ||
            filterForm.date_to;
 });
 
@@ -262,16 +263,17 @@ const applyFilters = () => {
     isLoading.value = true;
     const params = {
         search: filterForm.search || undefined,
-        status: filterForm.status || undefined,
-        client_id: filterForm.client_id || undefined,
+        status: filterForm.status !== 'all' ? filterForm.status : undefined,
+        client_id: filterForm.client_id !== 'all' ? filterForm.client_id : undefined,
         date_from: filterForm.date_from || undefined,
         date_to: filterForm.date_to || undefined,
         sort_by: filterForm.sort_by,
         sort_direction: filterForm.sort_direction,
     };
-    
+
     router.get('/invoices', params, {
         preserveState: true,
+        preserveScroll: true,
         onFinish: () => {
             isLoading.value = false;
         }
@@ -279,10 +281,13 @@ const applyFilters = () => {
 };
 
 const clearFilters = () => {
-    filterForm.reset();
+    filterForm.search = '';
+    filterForm.status = 'all';
+    filterForm.client_id = 'all';
+    filterForm.date_from = '';
+    filterForm.date_to = '';
     filterForm.sort_by = 'created_at';
     filterForm.sort_direction = 'desc';
-    applyFilters();
 };
 
 const sortBy = (column: string) => {
@@ -303,20 +308,20 @@ const getSortIcon = (column: string) => {
 // Actions
 const deleteInvoice = (invoice: Invoice) => {
     if (confirm(`Are you sure you want to delete invoice ${invoice.invoice_number}?`)) {
-        router.delete(`/invoices/${invoice.id}`);
+        router.delete(route('invoices.destroy', invoice.uuid));
     }
 };
 
 const duplicateInvoice = (invoice: Invoice) => {
-    router.post(`/invoices/${invoice.id}/duplicate`);
+    router.post(route('invoices.duplicate', invoice.uuid));
 };
 
 const sendInvoice = (invoice: Invoice) => {
-    router.post(`/invoices/${invoice.id}/send`);
+    router.post(route('invoices.send', invoice.uuid));
 };
 
 const downloadPDF = (invoice: Invoice) => {
-    window.open(`/invoices/${invoice.id}/pdf`, '_blank');
+    window.open(route('invoices.pdf', invoice.uuid), '_blank');
 };
 
 // Bulk actions
@@ -354,8 +359,8 @@ watch(() => filterForm.search, (newValue) => {
     }, 500);
 });
 
-// Watch for other filter changes
-watch([() => filterForm.status, () => filterForm.client_id], () => {
+// Watch for other filter changes (real-time)
+watch([() => filterForm.status, () => filterForm.client_id, () => filterForm.date_from, () => filterForm.date_to], () => {
     applyFilters();
 });
 </script>
@@ -412,192 +417,179 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
 
                 <!-- Stats Cards -->
                 <div v-if="stats" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <Card>
-                        <CardContent class="p-4">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                        Total Amount
-                                    </p>
-                                    <p class="text-2xl font-bold text-gray-900 dark:text-white">
-                                        {{ formatCurrency(stats.total_amount) }}
-                                    </p>
-                                </div>
-                                <div class="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-full">
-                                    <DollarSign class="h-5 w-5 text-blue-600" />
-                                </div>
+                    <Card padding="md">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                    Total Amount
+                                </p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">
+                                    {{ formatCurrency(stats.total_amount) }}
+                                </p>
                             </div>
-                        </CardContent>
+                            <div class="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-full">
+                                <DollarSign class="h-5 w-5 text-blue-600" />
+                            </div>
+                        </div>
                     </Card>
 
-                    <Card>
-                        <CardContent class="p-4">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                        Paid Amount
-                                    </p>
-                                    <p class="text-2xl font-bold text-gray-900 dark:text-white">
-                                        {{ formatCurrency(stats.paid_amount) }}
-                                    </p>
-                                </div>
-                                <div class="p-2 bg-green-100 dark:bg-green-900/20 rounded-full">
-                                    <CheckCircle class="h-5 w-5 text-green-600" />
-                                </div>
+                    <Card padding="md">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                    Paid Amount
+                                </p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">
+                                    {{ formatCurrency(stats.paid_amount) }}
+                                </p>
                             </div>
-                        </CardContent>
+                            <div class="p-2 bg-green-100 dark:bg-green-900/20 rounded-full">
+                                <CheckCircle class="h-5 w-5 text-green-600" />
+                            </div>
+                        </div>
                     </Card>
 
-                    <Card>
-                        <CardContent class="p-4">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                        Pending Amount
-                                    </p>
-                                    <p class="text-2xl font-bold text-gray-900 dark:text-white">
-                                        {{ formatCurrency(stats.pending_amount) }}
-                                    </p>
-                                </div>
-                                <div class="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-full">
-                                    <Clock class="h-5 w-5 text-yellow-600" />
-                                </div>
+                    <Card padding="md">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                    Pending Amount
+                                </p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">
+                                    {{ formatCurrency(stats.pending_amount) }}
+                                </p>
                             </div>
-                        </CardContent>
+                            <div class="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-full">
+                                <Clock class="h-5 w-5 text-yellow-600" />
+                            </div>
+                        </div>
                     </Card>
 
-                    <Card>
-                        <CardContent class="p-4">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                        Overdue Amount
-                                    </p>
-                                    <p class="text-2xl font-bold text-gray-900 dark:text-white">
-                                        {{ formatCurrency(stats.overdue_amount) }}
-                                    </p>
-                                </div>
-                                <div class="p-2 bg-red-100 dark:bg-red-900/20 rounded-full">
-                                    <AlertCircle class="h-5 w-5 text-red-600" />
-                                </div>
+                    <Card padding="md">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                    Overdue Amount
+                                </p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">
+                                    {{ formatCurrency(stats.overdue_amount) }}
+                                </p>
                             </div>
-                        </CardContent>
+                            <div class="p-2 bg-red-100 dark:bg-red-900/20 rounded-full">
+                                <AlertCircle class="h-5 w-5 text-red-600" />
+                            </div>
+                        </div>
                     </Card>
                 </div>
 
                 <!-- Filters Panel -->
                 <Card v-if="showFilters" class="mb-6">
-                    <CardHeader>
+                    <template #header>
                         <div class="flex items-center justify-between">
-                            <CardTitle class="text-lg">Filters</CardTitle>
+                            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Filters</h2>
                             <Button variant="ghost" size="sm" @click="showFilters = false">
                                 <X class="h-4 w-4" />
                             </Button>
                         </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <!-- Search -->
-                            <div>
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                                    Search
-                                </label>
-                                <div class="relative">
-                                    <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                    <Input
-                                        v-model="filterForm.search"
-                                        placeholder="Search invoices..."
-                                        class="pl-9"
-                                    />
-                                </div>
-                            </div>
+                    </template>
 
-                            <!-- Status Filter -->
-                            <div>
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                                    Status
-                                </label>
-                                <Select v-model="filterForm.status">
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="All statuses" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem v-for="status in statusOptions" :key="status.value" :value="status.value">
-                                            {{ status.label }}
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <!-- Client Filter -->
-                            <div v-if="clients?.length">
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                                    Client
-                                </label>
-                                <Select v-model="filterForm.client_id">
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="All clients" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="">All clients</SelectItem>
-                                        <SelectItem v-for="client in clients" :key="client.id" :value="client.id.toString()">
-                                            {{ client.name }}
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <!-- Date Range -->
-                            <div>
-                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                                    Date Range
-                                </label>
-                                <div class="flex gap-2">
-                                    <Input
-                                        v-model="filterForm.date_from"
-                                        type="date"
-                                        class="flex-1"
-                                    />
-                                    <Input
-                                        v-model="filterForm.date_to"
-                                        type="date"
-                                        class="flex-1"
-                                    />
-                                </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <!-- Search -->
+                        <div>
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                                Search
+                            </label>
+                            <div class="relative">
+                                <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Input
+                                    v-model="filterForm.search"
+                                    placeholder="Search invoices..."
+                                    class="pl-9"
+                                />
                             </div>
                         </div>
 
-                        <div class="flex items-center justify-between mt-6">
-                            <div class="flex items-center gap-2">
-                                <Button @click="applyFilters" :disabled="isLoading">
-                                    <RefreshCw :class="['h-4 w-4 mr-2', isLoading && 'animate-spin']" />
-                                    Apply Filters
-                                </Button>
-                                <Button variant="outline" @click="clearFilters" v-if="hasActiveFilters">
-                                    Clear All
-                                </Button>
-                            </div>
-                            <p class="text-sm text-gray-500">
-                                {{ invoices.total }} total invoices found
-                            </p>
+                        <!-- Status Filter -->
+                        <div>
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                                Status
+                            </label>
+                            <Select v-model="filterForm.status">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All statuses" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem v-for="status in statusOptions" :key="status.value" :value="status.value">
+                                        {{ status.label }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
-                    </CardContent>
+
+                        <!-- Client Filter -->
+                        <div v-if="clients?.length">
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                                Client
+                            </label>
+                            <Select v-model="filterForm.client_id">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All clients" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All clients</SelectItem>
+                                    <SelectItem v-for="client in clients" :key="client.id" :value="client.id.toString()">
+                                        {{ client.name }}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <!-- Date Range -->
+                        <div>
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                                Date Range
+                            </label>
+                            <div class="flex gap-2">
+                                <Input
+                                    v-model="filterForm.date_from"
+                                    type="date"
+                                    class="flex-1"
+                                />
+                                <Input
+                                    v-model="filterForm.date_to"
+                                    type="date"
+                                    class="flex-1"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between mt-6">
+                        <div class="flex items-center gap-2">
+                            <Button variant="outline" @click="clearFilters" v-if="hasActiveFilters">
+                                Clear All
+                            </Button>
+                        </div>
+                        <p class="text-sm text-gray-500">
+                            {{ invoices.total }} total invoices found
+                        </p>
+                    </div>
                 </Card>
 
                 <!-- Main Content -->
                 <Card>
-                    <CardHeader>
+                    <template #header>
                         <div class="flex items-center justify-between">
                             <div>
-                                <CardTitle>
+                                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
                                     Invoices
                                     <span v-if="invoices.total > 0" class="text-sm font-normal text-gray-500 ml-2">
                                         ({{ invoices.from }}-{{ invoices.to }} of {{ invoices.total }})
                                     </span>
-                                </CardTitle>
-                                <CardDescription v-if="selectedInvoices.length > 0">
+                                </h2>
+                                <p v-if="selectedInvoices.length > 0" class="text-sm text-gray-500 dark:text-gray-400 mt-1">
                                     {{ selectedInvoices.length }} invoice(s) selected
-                                </CardDescription>
+                                </p>
                             </div>
 
                             <div class="flex items-center gap-2">
@@ -657,18 +649,17 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                 </div>
                             </div>
                         </div>
-                    </CardHeader>
+                    </template>
 
-                    <CardContent class="p-0">
+                    <div class="p-0">
                         <!-- Table View -->
                         <div v-if="viewMode === 'table'" class="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead class="w-12">
-                                            <Checkbox
-                                                :checked="allSelected"
-                                                @update:checked="allSelected = $event"
+                                            <CheckboxInput
+                                                v-model="allSelected"
                                             />
                                         </TableHead>
                                         
@@ -747,9 +738,9 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                         ]"
                                     >
                                         <TableCell>
-                                            <Checkbox
+                                            <CheckboxInput
                                                 :checked="isInvoiceSelected(invoice.id)"
-                                                @update:checked="toggleInvoiceSelection(invoice.id)"
+                                                @change="toggleInvoiceSelection(invoice.id)"
                                             />
                                         </TableCell>
 
@@ -760,7 +751,7 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                                 </div>
                                                 <div>
                                                     <Link
-                                                        :href="`/invoices/${invoice.id}`"
+                                                        :href="route('invoices.show', invoice.uuid)"
                                                         class="font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400"
                                                     >
                                                         {{ invoice.invoice_number }}
@@ -824,17 +815,17 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem as-child>
-                                                        <Link :href="`/invoices/${invoice.id}`">
+                                                        <Link :href="route('invoices.show', invoice.uuid)">
                                                             <Eye class="mr-2 h-4 w-4" />
                                                             View
                                                         </Link>
                                                     </DropdownMenuItem>
-                                                    
+
                                                     <DropdownMenuItem
                                                         v-if="invoice.status === 'draft' && canEditInvoices"
                                                         as-child
                                                     >
-                                                        <Link :href="`/invoices/${invoice.id}/edit`">
+                                                        <Link :href="route('invoices.edit', invoice.uuid)">
                                                             <Edit2 class="mr-2 h-4 w-4" />
                                                             Edit
                                                         </Link>
@@ -886,14 +877,14 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                         'cursor-pointer hover:shadow-lg transition-shadow',
                                         isInvoiceSelected(invoice.id) && 'ring-2 ring-blue-500'
                                     ]"
+                                    padding="md"
                                     @click="toggleInvoiceSelection(invoice.id)"
                                 >
-                                    <CardContent class="p-4">
-                                        <div class="flex items-start justify-between mb-3">
+                                    <div class="flex items-start justify-between mb-3">
                                             <div class="flex items-center gap-2">
-                                                <Checkbox
+                                                <CheckboxInput
                                                     :checked="isInvoiceSelected(invoice.id)"
-                                                    @click.stop="toggleInvoiceSelection(invoice.id)"
+                                                    @change="toggleInvoiceSelection(invoice.id)"
                                                 />
                                                 <FileText class="h-5 w-5 text-gray-400" />
                                             </div>
@@ -928,7 +919,7 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem as-child>
-                                                        <Link :href="`/invoices/${invoice.id}`">
+                                                        <Link :href="route('invoices.show', invoice.uuid)">
                                                             <Eye class="mr-2 h-4 w-4" />
                                                             View
                                                         </Link>
@@ -940,7 +931,6 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </div>
-                                    </CardContent>
                                 </Card>
                             </div>
                         </div>
@@ -969,7 +959,7 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                                 </p>
                             </div>
                         </div>
-                    </CardContent>
+                    </div>
                 </Card>
 
                 <!-- Pagination -->
@@ -986,7 +976,7 @@ watch([() => filterForm.status, () => filterForm.client_id], () => {
                         >
                             Previous
                         </Button>
-                        
+
                         <span class="px-3 py-1 text-sm text-gray-700 dark:text-gray-300">
                             Page {{ invoices.current_page }} of {{ invoices.last_page }}
                         </span>

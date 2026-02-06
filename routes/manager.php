@@ -22,8 +22,6 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
     // Invoice Management (Manager+ level)
     Route::middleware('permission:invoices.view')->group(function () {
         Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
-        Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
-        Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
     });
 
     Route::middleware('permission:invoices.create')->group(function () {
@@ -35,6 +33,11 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
     Route::middleware('permission:invoices.update')->group(function () {
         Route::get('invoices/{invoice}/edit', [InvoiceController::class, 'edit'])->name('invoices.edit');
         Route::put('invoices/{invoice}', [InvoiceController::class, 'update'])->name('invoices.update');
+    });
+
+    Route::middleware('permission:invoices.view')->group(function () {
+        Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
+        Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
     });
 
     Route::middleware('permission:invoices.send')->group(function () {

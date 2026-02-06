@@ -58,7 +58,12 @@ class InvoiceController extends Controller
             $query->where('issue_date', '<=', $request->date_to);
         }
 
-        $invoices = $query->orderBy('created_at', 'desc')->paginate(15);
+        // Sorting
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortDirection = $request->get('sort_direction', 'desc');
+        $query->orderBy($sortBy, $sortDirection);
+
+        $invoices = $query->paginate(15);
         $clients = Client::where('is_active', true)->get();
 
         // Calculate stats for the filtered invoices
@@ -95,7 +100,7 @@ class InvoiceController extends Controller
         return Inertia::render('invoices/Index', [
             'invoices' => $invoices,
             'clients' => $clients,
-            'filters' => $request->only(['status', 'client_id', 'search', 'date_from', 'date_to']),
+            'filters' => $request->only(['status', 'client_id', 'search', 'date_from', 'date_to', 'sort_by', 'sort_direction']),
             'stats' => $stats,
         ]);
     }
@@ -111,6 +116,7 @@ class InvoiceController extends Controller
             'clients' => $clients,
             'currencies' => $currencies,
             'defaultCurrency' => $this->getBaseCurrency()?->code ?? 'USD',
+            'invoice_number' => Invoice::generateInvoiceNumber(),
         ]);
     }
 

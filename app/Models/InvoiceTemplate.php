@@ -2,47 +2,56 @@
 
 namespace App\Models;
 
-use App\Traits\BelongsToOrganization;
+use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InvoiceTemplate extends Model
 {
-    use BelongsToOrganization, HasFactory;
+    use HasFactory, HasUuid;
 
     protected $fillable = [
-        'organization_id', 'name', 'settings', 'is_default',
+        'name',
+        'slug',
+        'description',
+        'view_path',
+        'preview_image',
+        'is_free',
+        'price',
+        'is_active',
+        'settings',
     ];
 
     protected $casts = [
         'settings' => 'array',
-        'is_default' => 'boolean',
+        'is_free' => 'boolean',
+        'is_active' => 'boolean',
+        'price' => 'decimal:2',
     ];
 
-    protected static function boot()
+    public function organizations(): HasMany
     {
-        parent::boot();
+        return $this->hasMany(Organization::class, 'invoice_template_id');
+    }
 
-        static::creating(function ($template) {
-            if ($template->is_default) {
-                static::where('organization_id', $template->organization_id)
-                    ->where('is_default', true)
-                    ->update(['is_default' => false]);
-            }
-        });
+    public function scopeFree($query)
+    {
+        return $query->where('is_free', true);
+    }
 
-        static::updating(function ($template) {
-            if ($template->is_default) {
-                static::where('id', '!=', $template->id)
-                    ->where('organization_id', $template->organization_id)
-                    ->where('is_default', true)
-                    ->update(['is_default' => false]);
-            }
-        });
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopePremium($query)
+    {
+        return $query->where('is_free', false);
     }
 
     public static function getDefault()
     {
-        return static::where('is_default', true)->first();
+        return static::where('slug', 'default')->first();
     }
 }

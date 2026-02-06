@@ -9,24 +9,24 @@ import {
     Trash2,
     Calculator
 } from 'lucide-vue-next';
-
 import AppLayout from '@/layouts/AppLayout.vue';
+import InvoicePreview from '@/components/InvoicePreview.vue';
+import DatePicker from '@/components/DatePicker.vue';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Card from '@/components/custom/Card.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
+    NumberField,
+    NumberFieldContent,
+    NumberFieldDecrement,
+    NumberFieldInput,
+    NumberFieldIncrement,
+} from '@/components/ui/number-field';
+import { ModalLink } from '@inertiaui/modal-vue';
 import { usePermissions } from '@/composables/usePermissions';
 
 interface Client {
@@ -92,20 +92,6 @@ const form = useForm({
             total: 0
         }
     ] as InvoiceItem[]
-});
-
-// Client dialog state
-const showClientDialog = ref(false);
-const clientForm = useForm({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    postal_code: '',
-    country: '',
-    currency: props.defaultCurrency
 });
 
 const currencies = ref(props.currencies);
@@ -186,23 +172,11 @@ const removeItem = (index: number) => {
     }
 };
 
-const createClient = () => {
-    clientForm.post('/clients', {
-        onSuccess: (page) => {
-            const newClient = page.props.client as Client;
-            clients.value.push(newClient);
-            form.client_id = newClient.id.toString();
-            showClientDialog.value = false;
-            clientForm.reset();
-        }
-    });
-};
-
 const saveDraft = () => {
     if (!canSaveInvoice.value) {
         return;
     }
-    
+
     form.post('/invoices', {
         onSuccess: (page) => {
             const invoice = page.props.invoice;
@@ -215,7 +189,7 @@ const saveAndSend = () => {
     if (!canSaveInvoice.value) {
         return;
     }
-    
+
     form.post('/invoices?send=true', {
         onSuccess: (page) => {
             const invoice = page.props.invoice;
@@ -240,11 +214,12 @@ watch(() => form.items, () => {
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-4">
-                    <Link :href="route('invoices.index')">
-                        <Button variant="outline" size="icon">
-                            <ArrowLeft class="h-4 w-4" />
-                        </Button>
+                    <Link
+                      :as="Button" :href="route('invoices.index')"
+                      variant="outline" size="icon">
+                      <ArrowLeft class="h-4 w-4" />
                     </Link>
+
                     <div>
                         <h1 class="text-3xl font-bold tracking-tight">Create Invoice</h1>
                         <p class="text-muted-foreground">Create a new invoice for your client</p>
@@ -256,6 +231,7 @@ watch(() => form.items, () => {
                         <Save class="h-4 w-4 mr-2" />
                         Save Draft
                     </Button>
+
                     <Button @click="saveAndSend" :disabled="form.processing || !canSaveAndSend">
                         <Send class="h-4 w-4 mr-2" />
                         Save & Send
@@ -263,16 +239,19 @@ watch(() => form.items, () => {
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Main Content -->
-                <div class="lg:col-span-2 space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Main Content - Left Column -->
+                <div class="space-y-6">
                     <!-- Invoice Details -->
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Invoice Details</CardTitle>
-                            <CardDescription>Basic information about the invoice</CardDescription>
-                        </CardHeader>
-                        <CardContent class="space-y-4">
+                        <template #header>
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Invoice Details</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Basic information about the invoice</p>
+                            </div>
+                        </template>
+
+                        <div class="space-y-4">
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <Label for="invoice_number">Invoice Number</Label>
@@ -288,7 +267,7 @@ watch(() => form.items, () => {
                                 <div>
                                     <Label for="currency">Currency</Label>
                                     <Select v-model="form.currency">
-                                        <SelectTrigger class="mt-1">
+                                        <SelectTrigger class="mt-1 w-full">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -303,159 +282,45 @@ watch(() => form.items, () => {
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <Label for="issue_date">Issue Date</Label>
-                                    <Input
-                                        id="issue_date"
+                                    <DatePicker
                                         v-model="form.issue_date"
-                                        type="date"
+                                        placeholder="Select issue date"
                                         class="mt-1"
                                     />
-                                    <div v-if="form.errors.issue_date" class="text-sm text-red-600 mt-1">
-                                        {{ form.errors.issue_date }}
-                                    </div>
+                                    <InputError :message="form.errors.issue_date" class="mt-1" />
                                 </div>
                                 <div>
                                     <Label for="due_date">Due Date</Label>
-                                    <Input
-                                        id="due_date"
+                                    <DatePicker
                                         v-model="form.due_date"
-                                        type="date"
+                                        placeholder="Select due date"
+                                        :min="form.issue_date"
                                         class="mt-1"
                                     />
-                                    <div v-if="form.errors.due_date" class="text-sm text-red-600 mt-1">
-                                        {{ form.errors.due_date }}
-                                    </div>
+                                    <InputError :message="form.errors.due_date" class="mt-1" />
                                 </div>
                             </div>
-                        </CardContent>
+                        </div>
                     </Card>
 
                     <!-- Client Information -->
                     <Card>
-                        <CardHeader>
+                        <template #header>
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <CardTitle>Client Information</CardTitle>
-                                    <CardDescription>Select or create a client for this invoice</CardDescription>
+                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Client Information</h3>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Select or create a client for this invoice</p>
                                 </div>
-                                <Dialog v-model:open="showClientDialog">
-                                    <DialogTrigger as-child>
-                                        <Button variant="outline" size="sm">
-                                            <Plus class="h-4 w-4 mr-2" />
-                                            New Client
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent class="sm:max-w-md">
-                                        <DialogHeader>
-                                            <DialogTitle>Create New Client</DialogTitle>
-                                            <DialogDescription>
-                                                Add a new client to your database.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div class="space-y-4">
-                                            <div>
-                                                <Label for="client_name">Name</Label>
-                                                <Input
-                                                    id="client_name"
-                                                    v-model="clientForm.name"
-                                                    placeholder="Client name"
-                                                    class="mt-1"
-                                                />
-                                            </div>
-                                            <div>
-                                                <Label for="client_email">Email</Label>
-                                                <Input
-                                                    id="client_email"
-                                                    v-model="clientForm.email"
-                                                    type="email"
-                                                    placeholder="client@example.com"
-                                                    class="mt-1"
-                                                />
-                                            </div>
-                                            <div>
-                                                <Label for="client_phone">Phone</Label>
-                                                <Input
-                                                    id="client_phone"
-                                                    v-model="clientForm.phone"
-                                                    placeholder="Phone number"
-                                                    class="mt-1"
-                                                />
-                                            </div>
-                                            <div>
-                                                <Label for="client_address">Address</Label>
-                                                <Textarea
-                                                    id="client_address"
-                                                    v-model="clientForm.address"
-                                                    placeholder="Street address"
-                                                    class="mt-1"
-                                                />
-                                            </div>
-                                            <div class="grid grid-cols-2 gap-2">
-                                                <div>
-                                                    <Label for="client_city">City</Label>
-                                                    <Input
-                                                        id="client_city"
-                                                        v-model="clientForm.city"
-                                                        placeholder="City"
-                                                        class="mt-1"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <Label for="client_state">State</Label>
-                                                    <Input
-                                                        id="client_state"
-                                                        v-model="clientForm.state"
-                                                        placeholder="State"
-                                                        class="mt-1"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div class="grid grid-cols-2 gap-2">
-                                                <div>
-                                                    <Label for="client_postal_code">Postal Code</Label>
-                                                    <Input
-                                                        id="client_postal_code"
-                                                        v-model="clientForm.postal_code"
-                                                        placeholder="12345"
-                                                        class="mt-1"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <Label for="client_country">Country</Label>
-                                                    <Input
-                                                        id="client_country"
-                                                        v-model="clientForm.country"
-                                                        placeholder="Country"
-                                                        class="mt-1"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <Label for="client_currency">Default Currency</Label>
-                                                <Select v-model="clientForm.currency">
-                                                    <SelectTrigger class="mt-1">
-                                                        <SelectValue placeholder="Select currency..." />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem v-for="currency in currencies" :key="currency.value" :value="currency.value">
-                                                            {{ currency.label }}
-                                                        </SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button variant="outline" @click="showClientDialog = false">
-                                                Cancel
-                                            </Button>
-                                            <Button @click="createClient" :disabled="clientForm.processing">
-                                                Create Client
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    :as="ModalLink"
+                                    :href="route('clients.create')">
+                                    <Plus class="h-4 w-4 mr-2" />
+                                    New Client
+                                </Button>
                             </div>
-                        </CardHeader>
-                        <CardContent>
+                        </template>
                             <div v-if="hasClients">
                                 <Label for="client_id">Select Client</Label>
                                 <Select v-model="form.client_id">
@@ -468,30 +333,30 @@ watch(() => form.items, () => {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <div v-if="form.errors.client_id" class="text-sm text-red-600 mt-1">
-                                    {{ form.errors.client_id }}
-                                </div>
+                                <InputError :message="form.errors.client_id" class="mt-1" />
                             </div>
 
                             <!-- No clients state -->
-                            <div v-else class="text-center py-8 px-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                                <div class="text-gray-500 mb-4">
+                            <div v-else class="text-center py-8 px-4 bg-gray-50 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
+                                <div class="text-gray-500 dark:text-gray-400 mb-4">
                                     <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                                     </svg>
                                 </div>
-                                <h3 class="text-lg font-medium text-gray-900 mb-2">No clients found</h3>
-                                <p class="text-gray-600 mb-4">You need to create at least one client before you can create an invoice.</p>
-                                <Button @click="showClientDialog = true" class="inline-flex items-center">
+                                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No clients found</h3>
+                                <p class="text-gray-600 dark:text-gray-400 mb-4">You need to create at least one client before you can create an invoice.</p>
+                                <ModalLink
+                                    :href="route('clients.create')"
+                                    class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:ring-offset-gray-950 dark:focus-visible:ring-gray-300 bg-gray-900 text-gray-50 hover:bg-gray-900/90 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50/90 h-10 px-4 py-2">
                                     <Plus class="h-4 w-4 mr-2" />
                                     Create Your First Client
-                                </Button>
+                                </ModalLink>
                             </div>
 
                             <!-- Selected Client Preview -->
-                            <div v-if="selectedClient" class="mt-4 p-4 bg-gray-50 rounded-lg">
-                                <h4 class="font-medium mb-2">{{ selectedClient.name }}</h4>
-                                <div class="text-sm text-gray-600 space-y-1">
+                            <div v-if="selectedClient" class="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-2">{{ selectedClient.name }}</h4>
+                                <div class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
                                     <div>{{ selectedClient.email }}</div>
                                     <div v-if="selectedClient.phone">{{ selectedClient.phone }}</div>
                                     <div v-if="selectedClient.address">
@@ -503,83 +368,97 @@ watch(() => form.items, () => {
                                     </div>
                                 </div>
                             </div>
-                        </CardContent>
                     </Card>
 
                     <!-- Invoice Items -->
                     <Card>
-                        <CardHeader>
+                        <template #header>
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <CardTitle>Invoice Items</CardTitle>
-                                    <CardDescription>Add items or services to your invoice</CardDescription>
+                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Invoice Items</h3>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Add items or services to your invoice</p>
                                 </div>
                                 <Button variant="outline" size="sm" @click="addItem">
                                     <Plus class="h-4 w-4 mr-2" />
                                     Add Item
                                 </Button>
                             </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div class="space-y-4">
-                                <div v-for="(item, index) in form.items" :key="index" class="grid grid-cols-12 gap-4 items-end">
-                                    <div class="col-span-5">
+                        </template>
+                            <div class="space-y-6">
+                                <div v-for="(item, index) in form.items" :key="index" class="space-y-3 pb-4 border-b border-gray-200 dark:border-gray-700 last:border-0">
+                                    <!-- Description (Full Width) -->
+                                    <div>
                                         <Label v-if="index === 0" for="description">Description</Label>
-                                        <Input
+                                        <Textarea
                                             v-model="item.description"
                                             placeholder="Description of item or service"
                                             :class="{ 'mt-1': index === 0 }"
                                         />
                                     </div>
-                                    <div class="col-span-2">
-                                        <Label v-if="index === 0" for="quantity">Quantity</Label>
-                                        <Input
-                                            v-model.number="item.quantity"
-                                            type="number"
-                                            min="1"
-                                            step="1"
-                                            :class="{ 'mt-1': index === 0 }"
-                                        />
-                                    </div>
-                                    <div class="col-span-2">
-                                        <Label v-if="index === 0" for="unit_price">Unit Price</Label>
-                                        <Input
-                                            v-model.number="item.unit_price"
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            :class="{ 'mt-1': index === 0 }"
-                                        />
-                                    </div>
-                                    <div class="col-span-2">
-                                        <Label v-if="index === 0">Total</Label>
-                                        <div class="h-10 px-3 py-2 border border-input rounded-md bg-gray-50 flex items-center">
-                                            {{ formatCurrency(item.total, form.currency) }}
+
+                                    <!-- Quantity, Unit Price, Total, and Delete Button -->
+                                    <div class="grid grid-cols-12 gap-4 items-end">
+                                        <div class="col-span-3">
+                                            <Label v-if="index === 0" for="quantity">Quantity</Label>
+                                            <NumberField
+                                                v-model="item.quantity"
+                                                :min="1"
+                                                :class="{ 'mt-1': index === 0 }"
+                                                @update:model-value="calculateItemTotal(index)"
+                                            >
+                                                <NumberFieldContent>
+                                                    <NumberFieldDecrement />
+                                                    <NumberFieldInput />
+                                                    <NumberFieldIncrement />
+                                                </NumberFieldContent>
+                                            </NumberField>
                                         </div>
-                                    </div>
-                                    <div class="col-span-1">
-                                        <Button
-                                            v-if="form.items.length > 1"
-                                            variant="outline"
-                                            size="icon"
-                                            @click="removeItem(index)"
-                                            class="text-red-600 hover:text-red-700"
-                                        >
-                                            <Trash2 class="h-4 w-4" />
-                                        </Button>
+                                        <div class="col-span-4">
+                                            <Label v-if="index === 0" for="unit_price">Unit Price</Label>
+                                            <NumberField
+                                                v-model="item.unit_price"
+                                                :min="0"
+                                                :format-options="{ style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }"
+                                                :class="{ 'mt-1': index === 0 }"
+                                                @update:model-value="calculateItemTotal(index)"
+                                            >
+                                                <NumberFieldContent>
+                                                    <NumberFieldDecrement />
+                                                    <NumberFieldInput />
+                                                    <NumberFieldIncrement />
+                                                </NumberFieldContent>
+                                            </NumberField>
+                                        </div>
+                                        <div class="col-span-4">
+                                            <Label v-if="index === 0">Total</Label>
+                                            <div class="h-10 px-3 py-2 border border-input rounded-md bg-gray-50 dark:bg-gray-800 flex items-center text-gray-900 dark:text-gray-100">
+                                                {{ formatCurrency(item.total, form.currency) }}
+                                            </div>
+                                        </div>
+                                        <div class="col-span-1">
+                                            <Button
+                                                v-if="form.items.length > 1"
+                                                variant="outline"
+                                                size="icon"
+                                                @click="removeItem(index)"
+                                                class="text-red-600 hover:text-red-700">
+                                                <Trash2 class="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </CardContent>
                     </Card>
 
                     <!-- Notes and Terms -->
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Additional Information</CardTitle>
-                            <CardDescription>Add notes or terms to your invoice</CardDescription>
-                        </CardHeader>
-                        <CardContent class="space-y-4">
+                        <template #header>
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Additional Information</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Add notes or terms to your invoice</p>
+                            </div>
+                        </template>
+                        <div class="space-y-4">
                             <div>
                                 <Label for="notes">Notes</Label>
                                 <Textarea
@@ -598,90 +477,71 @@ watch(() => form.items, () => {
                                     class="mt-1"
                                 />
                             </div>
-                        </CardContent>
+                        </div>
                     </Card>
-                </div>
 
-                <!-- Sidebar -->
-                <div class="space-y-6">
                     <!-- Tax and Discount -->
                     <Card>
-                        <CardHeader>
-                            <CardTitle>
-                                <Calculator class="h-5 w-5 mr-2 inline" />
-                                Tax & Discount
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent class="space-y-4">
+                        <template #header>
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+                                    <Calculator class="h-5 w-5 mr-2" />
+                                    Tax & Discount
+                                </h3>
+                            </div>
+                        </template>
+                        <div class="space-y-4">
                             <div>
                                 <Label for="discount">Discount (%)</Label>
-                                <Input
-                                    id="discount"
-                                    v-model.number="form.discount"
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
+                                <NumberField
+                                    v-model="form.discount"
+                                    :min="0"
+                                    :max="100"
+                                    :format-options="{ style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }"
                                     class="mt-1"
-                                />
+                                >
+                                    <NumberFieldContent>
+                                        <NumberFieldDecrement />
+                                        <NumberFieldInput />
+                                        <NumberFieldIncrement />
+                                    </NumberFieldContent>
+                                </NumberField>
                             </div>
                             <div>
                                 <Label for="tax_rate">Tax Rate (%)</Label>
-                                <Input
-                                    id="tax_rate"
-                                    v-model.number="form.tax_rate"
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
+                                <NumberField
+                                    v-model="form.tax_rate"
+                                    :min="0"
+                                    :max="100"
+                                    :format-options="{ style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }"
                                     class="mt-1"
-                                />
+                                >
+                                    <NumberFieldContent>
+                                        <NumberFieldDecrement />
+                                        <NumberFieldInput />
+                                        <NumberFieldIncrement />
+                                    </NumberFieldContent>
+                                </NumberField>
                             </div>
-                        </CardContent>
+                        </div>
                     </Card>
+                </div>
 
-                    <!-- Invoice Summary -->
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Invoice Summary</CardTitle>
-                        </CardHeader>
-                        <CardContent class="space-y-2">
-                            <div class="flex justify-between text-sm">
-                                <span>Subtotal:</span>
-                                <span>{{ formatCurrency(subtotal, form.currency) }}</span>
-                            </div>
-                            <div v-if="form.discount > 0" class="flex justify-between text-sm">
-                                <span>Discount ({{ form.discount }}%):</span>
-                                <span>-{{ formatCurrency(discountAmount, form.currency) }}</span>
-                            </div>
-                            <div v-if="form.tax_rate > 0" class="flex justify-between text-sm">
-                                <span>Tax ({{ form.tax_rate }}%):</span>
-                                <span>{{ formatCurrency(taxAmount, form.currency) }}</span>
-                            </div>
-                            <Separator />
-                            <div class="flex justify-between font-semibold text-lg">
-                                <span>Total:</span>
-                                <span>{{ formatCurrency(total, form.currency) }}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <!-- Actions -->
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Actions</CardTitle>
-                        </CardHeader>
-                        <CardContent class="space-y-2">
-                            <Button variant="outline" size="sm" class="w-full" @click="saveDraft" :disabled="form.processing || !canSaveInvoice">
-                                <Save class="h-4 w-4 mr-2" />
-                                Save as Draft
-                            </Button>
-                            <Button size="sm" class="w-full" @click="saveAndSend" :disabled="form.processing || !canSaveAndSend">
-                                <Send class="h-4 w-4 mr-2" />
-                                Save & Send to Client
-                            </Button>
-                        </CardContent>
-                    </Card>
+                <!-- Right Column - Live Preview -->
+                <div class="sticky top-6 h-fit">
+                    <InvoicePreview
+                        :invoice-number="form.invoice_number"
+                        :client="selectedClient"
+                        :issue-date="form.issue_date"
+                        :due-date="form.due_date"
+                        :currency="form.currency"
+                        :currency-symbol="currencies.find(c => c.value === form.currency)?.symbol || '$'"
+                        :items="form.items"
+                        :tax-rate="form.tax_rate"
+                        :discount="discountAmount"
+                        :notes="form.notes"
+                        :terms="form.terms"
+                    />
                 </div>
             </div>
         </div>

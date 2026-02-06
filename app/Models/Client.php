@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Traits\BelongsToOrganization;
+use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Client extends Model
 {
-    use BelongsToOrganization, HasFactory;
+    use BelongsToOrganization, HasFactory, HasUuid;
 
     protected $fillable = [
         'organization_id', 'name', 'email', 'phone', 'address', 'city', 'state',

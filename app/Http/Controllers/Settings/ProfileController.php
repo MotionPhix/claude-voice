@@ -18,7 +18,12 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
-        return Inertia::render('settings/Profile', [
+        return Inertia::render('settings/account/Profile', [
+            'user' => [
+                'name' => $request->user()->name,
+                'email' => $request->user()->email,
+                'avatar' => $request->user()->avatar ?? null,
+            ],
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
         ]);
@@ -37,7 +42,25 @@ class ProfileController extends Controller
 
         $request->user()->save();
 
-        return to_route('profile.edit');
+        return to_route('settings.account.profile');
+    }
+
+    /**
+     * Upload the user's avatar.
+     */
+    public function uploadAvatar(Request $request): RedirectResponse
+    {
+        // TODO: Implement avatar upload
+        return back();
+    }
+
+    /**
+     * Delete the user's avatar.
+     */
+    public function deleteAvatar(Request $request): RedirectResponse
+    {
+        // TODO: Implement avatar deletion
+        return back();
     }
 
     /**

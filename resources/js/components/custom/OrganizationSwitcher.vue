@@ -93,7 +93,7 @@
                     
                     <Link
                         v-if="canManageOrganization"
-                        :href="route('organizations.settings', currentOrganization?.id)"
+                        :href="route('organizations.settings', currentOrganization?.uuid)"
                         class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                         @click="isOpen = false"
                     >

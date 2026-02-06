@@ -17,7 +17,7 @@ import {
 
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Card from '@/components/custom/Card.vue';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { usePermissions } from '@/composables/usePermissions';
@@ -125,7 +125,7 @@ const formatDate = (dateString: string) => {
               Create Invoice
             </Button>
           </Link>
-          <Link v-if="canUpdateClients" :href="route('clients.edit', client.id)">
+          <Link v-if="canUpdateClients" :href="route('clients.edit', client.uuid)">
             <Button variant="outline">
               <Edit class="h-4 w-4 mr-2" />
               Edit Client

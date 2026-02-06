@@ -4,7 +4,7 @@ import { Plus, Search, Edit, Trash2, Eye } from 'lucide-vue-next';
 
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Card from '@/components/custom/Card.vue';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { usePermissions } from '@/composables/usePermissions';
@@ -148,12 +148,12 @@ const formatCurrency = (amount: number) => {
                   </td>
                   <td class="p-4">
                     <div class="flex items-center space-x-2">
-                      <Link :href="route('clients.show', client.id)">
+                      <Link :href="route('clients.show', client.uuid)">
                         <Button variant="ghost" size="sm">
                           <Eye class="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Link v-if="canEditClients" :href="route('clients.edit', client.id)">
+                      <Link v-if="canEditClients" :href="route('clients.edit', client.uuid)">
                         <Button variant="ghost" size="sm">
                           <Edit class="h-4 w-4" />
                         </Button>

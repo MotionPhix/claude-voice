@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Traits\BelongsToOrganization;
+use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Invoice extends Model
 {
-    use BelongsToOrganization, HasFactory;
+    use BelongsToOrganization, HasFactory, HasUuid;
 
     protected $fillable = [
         'organization_id', 'invoice_number', 'client_id', 'recurring_invoice_id', 'currency', 'exchange_rate',

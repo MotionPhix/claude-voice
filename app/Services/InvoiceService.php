@@ -20,11 +20,21 @@ class InvoiceService
         $dompdf = new Dompdf($options);
 
         // Load the invoice with its relationships
-        $invoice->load(['client', 'items', 'client.organization']);
+        $invoice->load(['client', 'items', 'organization', 'organization.invoiceTemplate']);
 
-        // Generate HTML content
-        $html = view('pdfs.invoice', [
+        // Get the organization's template or use default
+        $template = $invoice->organization->invoiceTemplate
+            ?? \App\Models\InvoiceTemplate::getDefault()
+            ?? \App\Models\InvoiceTemplate::where('slug', 'default')->first();
+
+        // Get currency symbol
+        $currencySymbol = $this->getCurrencySymbol($invoice->currency);
+
+        // Generate HTML content using the selected template
+        $html = view($template->view_path, [
             'invoice' => $invoice,
+            'organization' => $invoice->organization,
+            'currencySymbol' => $currencySymbol,
         ])->render();
 
         $dompdf->loadHtml($html);
@@ -32,6 +42,16 @@ class InvoiceService
         $dompdf->render();
 
         return $dompdf;
+    }
+
+    /**
+     * Get currency symbol for the given currency code.
+     */
+    protected function getCurrencySymbol(string $currencyCode): string
+    {
+        $currency = \App\Models\Currency::where('code', $currencyCode)->first();
+
+        return $currency?->symbol ?? $currencyCode;
     }
 
     /**
