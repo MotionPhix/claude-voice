@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CheckboxInput from '@/components/CheckboxInput.vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { Form, Head } from '@inertiajs/vue3';
 import { LoaderCircle } from 'lucide-vue-next';
-import CheckboxInput from '@/components/CheckboxInput.vue';
 
 defineProps<{
     status?: string;

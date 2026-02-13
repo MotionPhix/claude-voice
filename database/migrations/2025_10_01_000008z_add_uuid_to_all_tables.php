@@ -116,16 +116,15 @@ return new class extends Migration
             $table->unique('uuid');
         });
 
-        // Invoice Templates
-        Schema::table('invoice_templates', function (Blueprint $table) {
-            $table->uuid('uuid')->after('id')->nullable();
-        });
-        DB::table('invoice_templates')->get()->each(function ($template) {
-            DB::table('invoice_templates')->where('id', $template->id)->update(['uuid' => (string) Str::uuid()]);
-        });
-        Schema::table('invoice_templates', function (Blueprint $table) {
-            $table->unique('uuid');
-        });
+        // Invoice Templates - already has UUID from creation
+        if (!DB::table('invoice_templates')->whereNull('uuid')->exists()) {
+            // UUID column exists and is populated, just ensure it's unique
+            Schema::table('invoice_templates', function (Blueprint $table) {
+                if (!Schema::hasIndex('invoice_templates', 'invoice_templates_uuid_unique')) {
+                    $table->unique('uuid');
+                }
+            });
+        }
 
         // Currencies
         Schema::table('currencies', function (Blueprint $table) {

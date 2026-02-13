@@ -1,3 +1,23 @@
+<script setup lang="ts">
+import AuthenticatedLayout from '@/layouts/AuthLayout.vue';
+import { Head, Link, useForm } from '@inertiajs/vue3';
+
+const form = useForm({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    postal_code: '',
+    country: 'Malawi',
+});
+
+const submit = () => {
+    form.post(route('organizations.store'));
+};
+</script>
+
 <template>
     <Head title="Create Organization" />
 
@@ -157,23 +177,3 @@
         </div>
     </AuthenticatedLayout>
 </template>
-
-<script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-
-const form = useForm({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    postal_code: '',
-    country: 'Malawi',
-});
-
-const submit = () => {
-    form.post(route('organizations.store'));
-};
-</script>

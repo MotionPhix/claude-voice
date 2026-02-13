@@ -4,10 +4,10 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 
-/*$schedule = app(Illuminate\Console\Scheduling\Schedule::class);
+$schedule = app(Illuminate\Console\Scheduling\Schedule::class);
 
 // Update overdue invoices daily at 1:00 AM
-$schedule->command('invoices:update-overdue')
+/*$schedule->command('invoices:update-overdue')
     ->dailyAt('01:00')
     ->withoutOverlapping()
     ->runInBackground();
@@ -39,4 +39,7 @@ $schedule->call(function () {
 })->weekly()
     ->sundays()
     ->at('04:00');*/
+
+$schedule->command('users:cleanup-unverified')
+    ->everyTenMinutes();
 

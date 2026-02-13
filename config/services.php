@@ -42,4 +42,18 @@ return [
         'webhook_secret' => env('PAYCHANGU_WEBHOOK_SECRET'),
     ],
 
+    'twilio' => [
+      'sid' => env('TWILIO_SID'),
+      'token' => env('TWILIO_AUTH_TOKEN'),
+      'from' => env('TWILIO_PHONE'),
+    ],
+
+    'telcomw' => [
+        'base_url' => env('TELCOMW_BASE_URL'),
+        'api_key'  => env('TELCOMW_API_KEY'),
+        'app_id'   => env('TELCOMW_APP_ID'),
+        'password' => env('TELCOMW_PASSWORD'),
+        'sender'   => env('TELCOMW_SENDER'),
+    ],
+
 ];

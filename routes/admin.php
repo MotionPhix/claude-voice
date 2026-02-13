@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\InvoiceTemplateController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\SettingsController;
@@ -49,6 +50,17 @@ Route::middleware(['auth', 'verified', 'organization'])->group(function () {
                 ->name('remove')
                 ->middleware('permission:members.remove');
         });
+    });
+
+    // Invoice Templates (Admin/Owner level)
+    Route::prefix('invoice-templates')->name('invoice-templates.')->middleware('permission:settings.update')->group(function () {
+        Route::get('/', [InvoiceTemplateController::class, 'index'])->name('index');
+        Route::get('/create', [InvoiceTemplateController::class, 'create'])->name('create');
+        Route::post('/', [InvoiceTemplateController::class, 'store'])->name('store');
+        Route::get('/{invoiceTemplate}/edit', [InvoiceTemplateController::class, 'edit'])->name('edit');
+        Route::put('/{invoiceTemplate}', [InvoiceTemplateController::class, 'update'])->name('update');
+        Route::delete('/{invoiceTemplate}', [InvoiceTemplateController::class, 'destroy'])->name('destroy');
+        Route::get('/{invoiceTemplate}/preview', [InvoiceTemplateController::class, 'preview'])->name('preview');
     });
 
     // System Settings (Admin/Owner level)

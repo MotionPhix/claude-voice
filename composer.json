@@ -16,8 +16,11 @@
         "inertiaui/modal": "v1.0.0-beta.4",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
-        "protonemedia/laravel-cross-eloquent-search": "^4.0",
-        "tightenco/ziggy": "^2.4"
+        "propaganistas/laravel-phone": "^6.0",
+        "protonemedia/laravel-cross-eloquent-search": "^3.6",
+        "tightenco/ziggy": "^2.4",
+        "twilio/sdk": "^8.11",
+        "vonage/client": "^4.3"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

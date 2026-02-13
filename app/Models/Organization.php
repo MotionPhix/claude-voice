@@ -117,6 +117,14 @@ class Organization extends Model
     }
 
     /**
+     * Get all invoice templates belonging to this organization.
+     */
+    public function invoiceTemplates(): HasMany
+    {
+        return $this->hasMany(InvoiceTemplate::class);
+    }
+
+    /**
      * Scope to only active organizations.
      */
     public function scopeActive($query)

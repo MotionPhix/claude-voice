@@ -10,7 +10,6 @@ use App\Models\Organization;
 use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class DevelopmentSeeder extends Seeder
 {
@@ -21,19 +20,20 @@ class DevelopmentSeeder extends Seeder
   {
     // Create or find admin user with their own organization as owner
     $admin = User::firstOrCreate(
-      ['email' => 'demo@claude-voice.com'],
+      ['phone' => '+265996846321'],
       [
         'name' => 'Maxwell Estes',
-        'password' => Hash::make('password'),
+        'email' => 'demo@claude-voice.com',
         'email_verified_at' => now(),
+        'phone_verified_at' => now(),
       ]
     );
 
     // Ensure admin has an organization and membership
     if (!$admin->activeOrganizations->count()) {
       $organization = Organization::factory()->create([
-        'name' => 'Laravel Demo Organization',
-        'slug' => 'laravel-demo'
+        'name' => 'Ultrashots',
+        'slug' => 'ultrashots-demo'
       ]);
 
       Membership::factory()

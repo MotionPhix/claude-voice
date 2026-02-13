@@ -20,7 +20,7 @@ return new class extends Migration
                 ->onDelete('cascade');
 
             // Add index for better query performance
-            $table->index(['organization_id', 'is_default']);
+            $table->index(['organization_id']);
         });
     }
 
@@ -31,7 +31,7 @@ return new class extends Migration
     {
         Schema::table('invoice_templates', function (Blueprint $table) {
             $table->dropForeign(['organization_id']);
-            $table->dropIndex(['organization_id', 'is_default']);
+            $table->dropIndex(['organization_id']);
             $table->dropColumn('organization_id');
         });
     }
